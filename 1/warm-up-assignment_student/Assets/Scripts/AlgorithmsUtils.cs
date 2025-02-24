@@ -64,4 +64,9 @@ public class AlgorithmsUtils
     {
         DebugExtension.DebugBounds(new Bounds(new Vector3(rectInt.center.x, 0, rectInt.center.y), new Vector3(rectInt.width, height, rectInt.height)), color, duration, depthTest);
     }
+    
+    public static void DebugRectInt(RectRoom rectRoom, Color color, float duration = 0f, bool depthTest = false, float height = 0.01f)
+    {
+        DebugExtension.DebugBounds(new Bounds(new Vector3(rectRoom.Center().x, 0, rectRoom.Center().y), new Vector3(rectRoom.width, height, rectRoom.height)), color, duration, depthTest);
+    }
 }

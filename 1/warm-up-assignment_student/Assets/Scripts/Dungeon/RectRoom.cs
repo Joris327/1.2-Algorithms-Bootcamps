@@ -30,4 +30,9 @@ public class RectRoom
     public Vector2 GetPos() => new(x, y);
     
     public Vector2 GetSize() => new(width, height);
+    
+    public Vector2 Center()
+    {
+        return new(x + (width/2f), y + (height/2f));
+    }
 }
