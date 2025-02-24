@@ -2,10 +2,11 @@ using UnityEngine;
 
 public class RectRoom
 {
-    public int x = 0;
-    public int y = 0;
-    public int width = 0;
-    public int height = 0;
+    public int x;
+    public int y;
+    public int width;
+    public int height;
+    public bool markedForDestruction;
     
     public RectRoom(int pX, int pY, int pWidth, int pHeight)
     {
@@ -13,6 +14,7 @@ public class RectRoom
         y = pY;
         width = pWidth;
         height = pHeight;
+        markedForDestruction = false;
     }
     
     public void SetPos(int newX, int newY)
@@ -35,4 +37,6 @@ public class RectRoom
     {
         return new(x + (width/2f), y + (height/2f));
     }
+    
+    public bool IsWiderThanHigh() => width > height;
 }

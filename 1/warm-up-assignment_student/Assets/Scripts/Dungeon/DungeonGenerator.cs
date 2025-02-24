@@ -4,62 +4,107 @@ using UnityEngine;
 public class DungeonGenerator : MonoBehaviour
 {
     public List<RectRoom> rooms = new();
-    RectRoom startRoom = new(0,0,100,50);
-    const int wallThickness = 5;
+    
+    [SerializeField] int wallThickness = 1;
+    [SerializeField] int worldWidth = 100;
+    [SerializeField] int worldHeight = 100;
+    [SerializeField] int minRoomSize = 5;
+    [SerializeField] int roomsLimit = 1000;
+    [SerializeField] int seed = 0;
     
     void Start()
     {
-        rooms.Add(startRoom);
-        SplitVertically(rooms[0]);
+        if (seed == 0) seed = (int)(Random.value * int.MaxValue);
+        Random.InitState(seed);
         
-        SplitVertically(rooms[0]);
-        //SplitHorizontally(rooms[0]);
-        SplitHorizontally(rooms[1]);
-        
-        foreach (RectRoom room in rooms)
-        {
-            Debug.Log(room.GetPos() + " " + room.GetSize());
-            //room.width++;
-            //room.height++;
-            if (room.x > 0)
-            {
-                room.x -= wallThickness;
-                room.width += wallThickness;
-            }
-            else if (room.width < 100) room.width += wallThickness/2;
-            
-            if (room.y > 0)
-            {
-                room.y -= wallThickness;
-                room.height += wallThickness;
-            }
-            else if (room.height < 50) room.height += wallThickness/2;
-            
-            Debug.Log(room.GetPos() + " " + room.GetSize());
-        }
+        GenerateDungeon();
     }
 
     void Update()
     {
-        foreach(RectRoom room in rooms)
+        if (Input.GetKeyUp(KeyCode.G)) GenerateDungeon();
+        
+        if (rooms != null && rooms.Count > 0)
         {
-            AlgorithmsUtils.DebugRectInt(room, Color.yellow);
+            foreach(RectRoom room in rooms)
+            {
+                AlgorithmsUtils.DebugRectRoom(room, Color.yellow);
+            }
         }
+        else Debug.LogWarning("No Rooms");
+        
+        DebugExtension.DebugLocalCube(transform, new Vector3(worldWidth, 0, worldHeight), new Vector3(worldWidth/2f, 0, worldHeight/2f));
     }
     
-    void SplitVertically(RectRoom room)
+    void GenerateDungeon()
     {
-        RectRoom room2 = new(room.x + room.width/2, room.y, room.width/2, room.height);
-        room.width = room.width/2;
+        rooms.Clear();
+        RectRoom baseRoom = new(0, 0, worldWidth, worldHeight);
+        rooms.Add(baseRoom);
         
-        rooms.Add(room2);
+        if (!CanBeSplit(ref baseRoom))
+        {
+            Debug.Log("Unsplittable");
+            return;
+        }
+        
+        for (int i = 0; i < rooms.Count; i++)
+        {
+            SplitRoom(rooms[i]);
+            
+            if (rooms.Count > roomsLimit)
+            {
+                Debug.Log("Reached room limit");
+                break;
+            }
+        }
+        
+        int removedRoomsCounter = 0;
+        for (int i = rooms.Count-1; i > 0; i--)
+        {
+            if (rooms[i].markedForDestruction)
+            {
+                rooms.RemoveAt(i);
+                removedRoomsCounter++;
+            }
+        }
+        
+        Debug.Log("removed rooms count: " + removedRoomsCounter);
+        Debug.Log("Current rooms count: " + rooms.Count);
     }
     
-    void SplitHorizontally(RectRoom room)
+    void SplitRoom(RectRoom room)
     {
-        RectRoom room2 = new(room.x, room.y + room.height/2, room.width, room.height/2);
-        room.height = room.height/2;
+        if (room.width <= (minRoomSize + wallThickness) * 2 && room.height <= (minRoomSize + wallThickness) * 2) return;
         
-        rooms.Add(room2);
+        bool splitVertically = false;
+        if (room.IsWiderThanHigh()) splitVertically = true;
+        
+        RectRoom newRoom1;
+        RectRoom newRoom2 = new(room.x, room.y, room.width, room.height);
+        
+        if (splitVertically)
+        {
+            int splitPos = Random.Range(minRoomSize, room.width - minRoomSize);
+            
+            newRoom1 = new(room.x + splitPos - wallThickness, room.y, room.width - splitPos + wallThickness, room.height);
+            newRoom2.width = splitPos + wallThickness;
+        }
+        else
+        {
+            int splitPos = Random.Range(minRoomSize, room.height - minRoomSize);
+            
+            newRoom1 = new(room.x, room.y + splitPos - wallThickness, room.width, room.height - splitPos + wallThickness);
+            newRoom2.height = splitPos + wallThickness;
+        }
+        
+        room.markedForDestruction = true;
+        
+        rooms.Add(newRoom1);
+        rooms.Add(newRoom2);
     }
+    
+    bool IsEven(int value) => value % 2 == 0;
+    
+    bool CanBeSplit(ref RectRoom room) => room.width > minRoomSize * 2 || room.height > minRoomSize * 2;
 }
