@@ -72,6 +72,8 @@ public class EnemySpawner : MonoBehaviour
         //Add new enemy to the end of the array and increment the count
   
         //ADD CODE HERE
+        enemies[enemyCount] = newEnemy;
+        enemyCount++;
     }
     
     [Button(enabledMode: EButtonEnableMode.Playmode)]
@@ -95,10 +97,20 @@ public class EnemySpawner : MonoBehaviour
         }
         
         GameObject newEnemy = SpawnEnemy();
-        
+        enemyCount++;
         //Shift all elements to the right starting from the end of the array to the index to insert and insert the new enemy at the index and increment the count
         
         //ADD CODE HERE
+        for (int i = enemies.Length-2; i >= indexToInsert; i--)
+        {
+            if (enemies[i]) enemies[i+1] = enemies[i];
+            
+            if (i == indexToInsert)
+            {
+                enemies[i] = newEnemy;
+                break;
+            }
+        }
     }
     
     private void RemoveEnemyAtIndex(int indexToRemove)
@@ -116,11 +128,17 @@ public class EnemySpawner : MonoBehaviour
         //Shift all elements to the left starting from the index to remove to the end of the array and decrement the count
         
         //ADD CODE HERE
+        for (int i = indexToRemove; i < enemies.Length-1; i++)
+        {
+            enemies[i] = enemies[i+1];
+        }
+        
+        enemyCount--;
         
         //If the array is too big, reduce its size
         int sizeToReduce = (int)(enemies.Length * .2f);
         Debug.Log(sizeToReduce);
-        if (sizeToReduce > initialSize && enemyCount <= sizeToReduce)
+        if (enemies.Length > initialSize && enemyCount <= sizeToReduce)
         {
             DecreaseArraySize();
         }
@@ -148,6 +166,14 @@ public class EnemySpawner : MonoBehaviour
         //Create a new array with double the size of the current array and copy the elements
         
         //ADD CODE HERE
+        GameObject[] newArray = new GameObject[enemies.Length * 2];
+        
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            newArray[i] = enemies[i];
+        }
+
+        enemies = newArray;
     }
     
     private void DecreaseArraySize()
@@ -155,7 +181,13 @@ public class EnemySpawner : MonoBehaviour
         //Create a new array with half the size of the current array and copy the elements
         
         //ADD CODE HERE
+        GameObject[] newArray = new GameObject[enemies.Length / 2];
+        
+        for (int i = 0; i < newArray.Length; i++)
+        {
+            newArray[i] = enemies[i];
+        }
+        
+        enemies = newArray;
     }
-    
 }
-
