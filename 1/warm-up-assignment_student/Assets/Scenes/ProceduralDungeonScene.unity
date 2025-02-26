@@ -455,12 +455,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6c0c5c001c0f5c947b8e971cac70e212, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  wallThickness: 1
-  worldWidth: 100
-  worldHeight: 100
-  minRoomSize: 10
-  roomsLimit: 1000
   seed: 0
+  generateAmount: 100
+  worldWidth: 1000
+  worldHeight: 1000
+  minRoomSize: 10
+  maxRoomSize: 20
+  roomsLimit: 100000
+  chanceToSplit: 95
+  guaranteedSplits: 10
+  wallThickness: 1
+  debugWallHeight: 5
 --- !u!4 &2033840193
 Transform:
   m_ObjectHideFlags: 0
