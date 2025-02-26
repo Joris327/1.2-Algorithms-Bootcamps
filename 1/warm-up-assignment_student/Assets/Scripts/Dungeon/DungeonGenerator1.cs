@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class DungeonGenerator : MonoBehaviour
+public class DungeonGenerator1 : MonoBehaviour
 {
-    List<RectRoom> rooms = new();
+    List<RectRoom> splitRooms = new();
+    Queue<RectRoom> toDoQueue = new();
     
     [SerializeField] int seed = 0;
     int startSeed;
@@ -60,11 +61,11 @@ public class DungeonGenerator : MonoBehaviour
             GenerateDungeon(true);
         }
         
-        Debug.Log("---");
+        Debug.Log("-----");
         Debug.Log("Total generation time in seconds: " + Math.Round(generationTimes.Sum() / 1000, 3));
         Debug.Log("Average generation time in milliseconds: " + generationTimes.Average(), this);
-        Debug.Log("Average rooms generated: " + roomsGenerated.Average(), this);
-        Debug.Log("Average rooms removed: " + roomsRemoved.Average(), this);
+        //Debug.Log("Average rooms generated: " + roomsGenerated.Average(), this);
+        //Debug.Log("Average rooms removed: " + roomsRemoved.Average(), this);
         Debug.Log("Average rooms final: " + roomsFinalCounts.Average(), this);
         Debug.Log("Amount of dungeons generated: " + generationTimes.Count, this);
     }
@@ -77,9 +78,9 @@ public class DungeonGenerator : MonoBehaviour
             if (generateAmount > 0) GenerateBatch();
         }
         
-        if (rooms != null && rooms.Count > 0)
+        if (splitRooms != null && splitRooms.Count > 0)
         {
-            foreach(RectRoom room in rooms)
+            foreach(RectRoom room in splitRooms)
             {
                 AlgorithmsUtils.DebugRectRoom(room, Color.yellow, 0, false, debugWallHeight);
             }
@@ -91,69 +92,67 @@ public class DungeonGenerator : MonoBehaviour
     
     void GenerateDungeon(bool storeStats = false)
     {
-        rooms.Clear();
+        
+        
+        splitRooms = new((Mathf.Max(worldHeight, worldWidth) / minRoomSize) * 2);
+        toDoQueue.Clear();
+        
         if (startSeed == 0) seed = random.Next(0, int.MaxValue);
         
         watch = System.Diagnostics.Stopwatch.StartNew();
         
         random = new(seed);
-
-        RectRoom baseRoom = new(0, 0, worldWidth, worldHeight);
-        rooms.Add(baseRoom);
         
-        if ( !CanBeSplit(baseRoom))
+        toDoQueue.Enqueue(new(0, 0, worldWidth, worldHeight));
+        
+        if ( !CanBeSplit(toDoQueue.Peek()))
         {
             Debug.LogWarning("Unsplittable");
+            splitRooms = toDoQueue.ToList();
             return;
         }
         
-        for (int i = 0; i < rooms.Count; i++)
+        int removedRooms = 0;
+        int roomsMade = 0;
+        
+        while (toDoQueue.Count > 0)
         {
-            RectRoom currentRoom = rooms.ElementAt(i);
-            if (i > guaranteedSplits && !MustBeSplit(currentRoom) && random.Next(0, 100) > chanceToSplit)
+            if (splitRooms.Count > guaranteedSplits && random.Next(0, 100) > chanceToSplit && !MustBeSplit(toDoQueue.Peek()))
             {
-                //do nothing
-            }
-            else
-            {
-                SplitRoom(currentRoom);
+                Debug.Log("not split");
+                splitRooms.Add(toDoQueue.Dequeue());
             }
             
-            if (rooms.Count > roomsLimit)
+            SplitRoom(toDoQueue.Dequeue());
+            removedRooms++;
+            roomsMade += 2;
+            
+            if (toDoQueue.Count > roomsLimit)
             {
                 Debug.LogWarning("Reached room limit");
+                splitRooms.AddRange(toDoQueue.ToList());
                 break;
             }
         }
         
-        int GeneratedRoomsCount = rooms.Count;
-        List<RectRoom> newRoomsList = new(rooms.Count/2+1);
-        for (int i = rooms.Count-1; i > 0; i--)
-        {
-            if (!rooms[i].markedForDestruction)
-            {
-                newRoomsList.Add(rooms[i]);
-            }
-        }
-        rooms = newRoomsList;
+        splitRooms.TrimExcess();
         
         watch.Stop();
         
         if (storeStats)
         {
-            roomsGenerated.Add(GeneratedRoomsCount);
-            roomsRemoved.Add(GeneratedRoomsCount - rooms.Count);
-            roomsFinalCounts.Add(rooms.Count);
+            roomsGenerated.Add(roomsMade);
+            roomsRemoved.Add(removedRooms);
+            roomsFinalCounts.Add(splitRooms.Count);
             generationTimes.Add(Math.Round(watch.Elapsed.TotalMilliseconds, 3));
         }
         else
         {
             Debug.Log("---");
             Debug.Log("Generation time in milliseconds: " + Math.Round(watch.Elapsed.TotalMilliseconds, 3), this);
-            Debug.Log("Rooms generated: " + GeneratedRoomsCount, this);
-            Debug.Log("Rooms removed: " + (GeneratedRoomsCount - rooms.Count), this);
-            Debug.Log("Rooms final: " + rooms.Count, this);
-            //Debug.Log(newRoomsList.Capacity);
+            Debug.Log("Rooms generated: " + roomsMade, this);
+            Debug.Log("Rooms removed: " + removedRooms, this);
+            Debug.Log("Rooms final: " + splitRooms.Count, this);
         }
     }
     
@@ -182,10 +181,11 @@ public class DungeonGenerator : MonoBehaviour
             newRoom2.height = splitPos + wallThickness;
         }
         
-        room.markedForDestruction = true;
+        if (CanBeSplit(newRoom2)) toDoQueue.Enqueue(newRoom2);
+        else splitRooms.Add(newRoom2);
         
-        rooms.Add(newRoom2);
-        rooms.Add(newRoom1);
+        if (CanBeSplit(newRoom1)) toDoQueue.Enqueue(newRoom1);
+        else splitRooms.Add(newRoom1);
     }
     
     bool IsEven(int value) => value % 2 == 0;
