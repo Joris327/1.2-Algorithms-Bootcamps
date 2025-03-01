@@ -471,13 +471,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   seed: 0
-  generateAmount: 400
+  amountToGenerate: 2
+  visualDelay: 0
   worldWidth: 1000
   worldHeight: 1000
   minRoomSize: 10
   maxRoomSize: 20
   roomsLimit: 100000
-  chanceToSplit: 95
+  chanceToSplit: 90
   guaranteedSplits: 4
   wallThickness: 1
   debugWallHeight: 5
