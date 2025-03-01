@@ -471,10 +471,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   seed: 0
-  amountToGenerate: 2
+  amountToGenerate: 100
   visualDelay: 0
-  worldWidth: 1000
-  worldHeight: 1000
+  worldWidth: 100
+  worldHeight: 50
   minRoomSize: 10
   maxRoomSize: 20
   roomsLimit: 100000
