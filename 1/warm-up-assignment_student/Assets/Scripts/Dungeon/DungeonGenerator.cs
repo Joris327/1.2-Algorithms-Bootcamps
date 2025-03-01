@@ -7,6 +7,8 @@ using UnityEngine;
 
 public class DungeonGenerator : MonoBehaviour
 {
+    DoorGenerator doorGenerator;
+    
     List<RectRoom> splitRooms = new();
     Queue<RectRoom> toDoQueue = new();
     
@@ -69,12 +71,16 @@ public class DungeonGenerator : MonoBehaviour
     [Button("Generate")]
     void StartGenerator()
     {
+        if (!TryGetComponent(out doorGenerator)) Debug.Log(name + ": could not find DoorGenerator on itself.", this);
+        
         totalGeneratedRoomsList = new(amountToGenerate);
         totalRoomsRemovedList = new(amountToGenerate);
         totalRoomsFinalDungeonList = new(amountToGenerate);
         DungeonGenerationTimesList = new(amountToGenerate);
         
         DungeonsGeneratedCount = 0;
+        
+        StopAllCoroutines();
         
         StartCoroutine(GenerateDungeon());
     }
@@ -83,8 +89,9 @@ public class DungeonGenerator : MonoBehaviour
     {
         if (amountToGenerate < 1) StopCoroutine(GenerateDungeon());
         
-        splitRooms = new((Mathf.Max(worldHeight, worldWidth) / minRoomSize) * 2);
+        splitRooms = new((worldHeight * worldWidth) / (minRoomSize * 2));
         toDoQueue.Clear();
+        Debug.Log("capacity: " + splitRooms.Capacity);
         
         if (startSeed == 0) seed = random.Next(0, int.MaxValue);
         
@@ -107,16 +114,20 @@ public class DungeonGenerator : MonoBehaviour
         
         while (toDoQueue.Count > 0)
         {
-            if (visualDelay > 0) yield return new WaitForSeconds(visualDelay);
+            if (visualDelay > 0)
+            {
+                DrawDungeon(visualDelay);
+                yield return new WaitForSeconds(visualDelay);
+            }
             
             if (splitRooms.Count > guaranteedSplits && random.Next(0, 100) > chanceToSplit && !MustBeSplit(toDoQueue.Peek()))
             {
                 splitRooms.Add(toDoQueue.Dequeue());
+                continue;
             }
             
-            SplitRoom(toDoQueue.Dequeue());
+            SplitRoom(toDoQueue.Dequeue(), ref roomsMade);
             removedRooms++;
-            roomsMade += 2;
             
             if (toDoQueue.Count > roomsLimit)
             {
@@ -139,6 +150,8 @@ public class DungeonGenerator : MonoBehaviour
             Debug.Log("Rooms generated: " + roomsMade, this);
             Debug.Log("Rooms removed: " + removedRooms, this);
             Debug.Log("Rooms final: " + splitRooms.Count, this);
+            
+            StartCoroutine(DrawDungeonContinuesly());
         }
         else if (DungeonsGeneratedCount < amountToGenerate)
         {
@@ -163,34 +176,47 @@ public class DungeonGenerator : MonoBehaviour
             Debug.Log("Average rooms removed: " + totalRoomsRemovedList.Average(), this);
             Debug.Log("Average rooms final: " + totalRoomsFinalDungeonList.Average(), this);
             Debug.Log("Amount of dungeons generated: " + DungeonsGeneratedCount, this);
+            
+            StartCoroutine(DrawDungeonContinuesly());
         }
         
-        StartCoroutine(ShowDungeon());
+        doorGenerator.GenerateDoors();
     }
     
     #endregion
     #region Room Splitting
     
-    void SplitRoom(RectRoom room)
+    enum SplitAbility { cannot, horizontally, vertically, bothSides }
+    
+    void SplitRoom(RectRoom room, ref int roomsMade)
     {
-        if ( !CanBeSplit(room)) return;
-        
         bool splitVertically = false; 
-        if (room.IsWiderThanHigh()) splitVertically = true;
+        
+        SplitAbility splitMode = DetermineSplitAbility(room);
+        switch (splitMode)
+        {
+            case SplitAbility.cannot: return;
+            case SplitAbility.vertically: splitVertically = true; break;
+            case SplitAbility.horizontally: splitVertically = false; break;
+            case SplitAbility.bothSides: splitVertically = random.Next(2) == 1; break;
+        }
+        
+        //if (room.IsWiderThanHigh()) splitVertically = true;
         
         RectRoom newRoom1;
         RectRoom newRoom2 = new(room.x, room.y, room.width, room.height);
+        int adjustedMinRoomSize = minRoomSize + wallThickness * 3;
         
         if (splitVertically)
         {
-            int splitPos = random.Next(minRoomSize, room.width - minRoomSize);
+            int splitPos = random.Next(adjustedMinRoomSize, room.width - adjustedMinRoomSize);
             
             newRoom1 = new(room.x + splitPos - wallThickness, room.y, room.width - splitPos + wallThickness, room.height);
             newRoom2.width = splitPos + wallThickness;
         }
         else
         {
-            int splitPos = random.Next(minRoomSize, room.height - minRoomSize);
+            int splitPos = random.Next(adjustedMinRoomSize, room.height - adjustedMinRoomSize);
             
             newRoom1 = new(room.x, room.y + splitPos - wallThickness, room.width, room.height - splitPos + wallThickness);
             newRoom2.height = splitPos + wallThickness;
@@ -201,41 +227,48 @@ public class DungeonGenerator : MonoBehaviour
         
         if (CanBeSplit(newRoom1)) toDoQueue.Enqueue(newRoom1);
         else splitRooms.Add(newRoom1);
+        
+        roomsMade += 2;
     }
     
     #endregion
     #region Helper Methods
     
-    IEnumerator ShowDungeon()
+    IEnumerator DrawDungeonContinuesly(float duration = 0)
     {
         while (true)
         {
-            if (splitRooms != null && splitRooms.Count > 0)
-            {
-                foreach(RectRoom room in splitRooms)
-                {
-                    AlgorithmsUtils.DebugRectRoom(room, Color.yellow, 0, false, debugWallHeight);
-                }
-            }
-            
-            if (toDoQueue != null && toDoQueue.Count > 0)
-            {
-                foreach(RectRoom room in toDoQueue)
-                {
-                    AlgorithmsUtils.DebugRectRoom(room, Color.yellow, 0, false, debugWallHeight);
-                }
-            }
-            
-            DebugExtension.DebugLocalCube(transform, new Vector3(worldWidth, 0, worldHeight), new Vector3(worldWidth/2f, 0, worldHeight/2f)); //shows world border
+            DrawDungeon(duration);
             
             yield return null;
         }
     }
     
+    void DrawDungeon(float duration = 0)
+    {
+        if (splitRooms != null && splitRooms.Count > 0)
+        {
+            foreach(RectRoom room in splitRooms)
+            {
+                AlgorithmsUtils.DebugRectRoom(room, Color.yellow, duration, false, debugWallHeight);
+            }
+        }
+        
+        if (toDoQueue != null && toDoQueue.Count > 0)
+        {
+            foreach(RectRoom room in toDoQueue)
+            {
+                AlgorithmsUtils.DebugRectRoom(room, Color.yellow, duration, false, debugWallHeight);
+            }
+        }
+        
+        DebugExtension.DebugLocalCube(transform, new Vector3(worldWidth, 0, worldHeight), new Vector3(worldWidth/2f, 0, worldHeight/2f)); //shows world border
+    }
+    
     [Button("Clear Dungeon")]
     void ClearDungeon()
     {
-        StopCoroutine(ShowDungeon());
+        StopAllCoroutines();
         
         totalGeneratedRoomsList = null;
         totalRoomsRemovedList = null;
@@ -251,9 +284,25 @@ public class DungeonGenerator : MonoBehaviour
     
     bool IsEven(int value) => value % 2 == 0;
     
-    bool CanBeSplit(RectRoom room) => room.width > (minRoomSize + wallThickness) * 2 || room.height > (minRoomSize + wallThickness) * 2;
+    bool CanBeSplit(RectRoom room) => room.width > (minRoomSize * 2) + (wallThickness * 6) || room.height > (minRoomSize * 2) + (wallThickness * 6);
     
-    bool MustBeSplit(RectRoom room) => room.width > (maxRoomSize - wallThickness) || room.height > (maxRoomSize - wallThickness);
+    bool MustBeSplit(RectRoom room) => room.width > (maxRoomSize - (wallThickness * 4)) || room.height > (maxRoomSize - (wallThickness * 4));
+    
+    SplitAbility DetermineSplitAbility(RectRoom room)
+    {
+        //the smallest size at which a room can be split and produce 2 new rooms equal or bigger than minRoomSize.
+        int splitSize = (minRoomSize * 2) + (wallThickness * 6);
+        
+        //if both sides cannot be split
+        if (room.width <= splitSize && room.height <= splitSize) return SplitAbility.cannot;
+        
+        //if one side cannot be split
+        if (room.width <= splitSize) return SplitAbility.horizontally;
+        if (room.height <= splitSize) return SplitAbility.vertically;
+        
+        //if both sides can be split
+        return SplitAbility.bothSides;
+    }
     
     #endregion
 }
