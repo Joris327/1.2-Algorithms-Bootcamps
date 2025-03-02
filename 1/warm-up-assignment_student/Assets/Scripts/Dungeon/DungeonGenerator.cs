@@ -8,13 +8,14 @@ using UnityEngine;
 public class DungeonGenerator : MonoBehaviour
 {
     DoorGenerator doorGenerator;
+    [HideInInspector] public bool doneGeneratingDoors = false;
     
     List<RectRoom> splitRooms = new();
-    Queue<RectRoom> toDoQueue = new();
+    readonly Queue<RectRoom> toDoQueue = new();
     
     [Tooltip("The seed used to generate the dungeon. If 0, will generate new random seed for each dungeon. Else will use the same seed for every dungeon generated.")]
     [SerializeField] int seed = 0;
-    int startSeed = 0;
+    [SerializeField] int startSeed = 0;
     [SerializeField, Min(0)] int amountToGenerate = 1;
     [SerializeField, Min(0)] float visualDelay = 0.5f;
     
@@ -38,39 +39,25 @@ public class DungeonGenerator : MonoBehaviour
     [SerializeField, Min(0)] int wallThickness = 1;
     [SerializeField, Min(0)] float debugWallHeight = 5;
     
-    System.Diagnostics.Stopwatch watch = new();
+    System.Diagnostics.Stopwatch perDungeonWatch = new();
+    System.Diagnostics.Stopwatch totalWatch = new();
     System.Random random = new();
     
     //statistics
-    List<int> totalGeneratedRoomsList;
-    List<int> totalRoomsRemovedList;
-    List<int> totalRoomsFinalDungeonList;
-    List<double> DungeonGenerationTimesList;
+    List<int> totalGeneratedRoomsList = new();
+    List<int> totalRoomsRemovedList = new();
+    List<int> totalRoomsFinalDungeonList = new();
+    List<double> DungeonGenerationTimesList = new();
     int DungeonsGeneratedCount = 0;
     
-    #region Awake/Start/Update
     
-    void Awake()
-    {
-        startSeed = seed;
-        
-        StartGenerator();
-    }
-
-    void Update()
-    {
-        if (Input.GetKeyUp(KeyCode.G))
-        {
-            StartGenerator();
-        }
-    }
-    
-    #endregion
     #region Generator
     
     [Button("Generate")]
     void StartGenerator()
     {
+        ClearGenerator();
+        
         if (!TryGetComponent(out doorGenerator)) Debug.Log(name + ": could not find DoorGenerator on itself.", this);
         
         totalGeneratedRoomsList = new(amountToGenerate);
@@ -78,10 +65,7 @@ public class DungeonGenerator : MonoBehaviour
         totalRoomsFinalDungeonList = new(amountToGenerate);
         DungeonGenerationTimesList = new(amountToGenerate);
         
-        DungeonsGeneratedCount = 0;
-        
-        StopAllCoroutines();
-        
+        totalWatch = System.Diagnostics.Stopwatch.StartNew();
         StartCoroutine(GenerateDungeon());
     }
     
@@ -89,15 +73,17 @@ public class DungeonGenerator : MonoBehaviour
     {
         if (amountToGenerate < 1) StopCoroutine(GenerateDungeon());
         
-        splitRooms = new((worldHeight * worldWidth) / (minRoomSize * 2));
+        doneGeneratingDoors = false;
+        
+        splitRooms = new((worldHeight * worldWidth) / (minRoomSize * minRoomSize));
         toDoQueue.Clear();
-        Debug.Log("capacity: " + splitRooms.Capacity);
         
         if (startSeed == 0) seed = random.Next(0, int.MaxValue);
-        
-        watch = System.Diagnostics.Stopwatch.StartNew();
+        else seed = startSeed;
         
         random = new(seed);
+        
+        perDungeonWatch = System.Diagnostics.Stopwatch.StartNew();
         
         toDoQueue.Enqueue(new(0, 0, worldWidth, worldHeight));
         
@@ -139,14 +125,15 @@ public class DungeonGenerator : MonoBehaviour
         
         splitRooms.TrimExcess();
         
-        watch.Stop();
+        perDungeonWatch.Stop();
         
         DungeonsGeneratedCount++;
         
         if (amountToGenerate == 1)
         {
+            totalWatch.Stop();
             Debug.Log("---");
-            Debug.Log("Generation time in milliseconds: " + Math.Round(watch.Elapsed.TotalMilliseconds, 3), this);
+            Debug.Log("Generation time: " + Math.Round(perDungeonWatch.Elapsed.TotalMilliseconds, 3), this);
             Debug.Log("Rooms generated: " + roomsMade, this);
             Debug.Log("Rooms removed: " + removedRooms, this);
             Debug.Log("Rooms final: " + splitRooms.Count, this);
@@ -158,20 +145,24 @@ public class DungeonGenerator : MonoBehaviour
             totalGeneratedRoomsList.Add(roomsMade);
             totalRoomsRemovedList.Add(removedRooms);
             totalRoomsFinalDungeonList.Add(splitRooms.Count);
-            DungeonGenerationTimesList.Add(Math.Round(watch.Elapsed.TotalMilliseconds, 3));
+            DungeonGenerationTimesList.Add(Math.Round(perDungeonWatch.Elapsed.TotalMilliseconds, 3));
+            doorGenerator.StartGenerator(splitRooms, visualDelay, wallThickness, seed, false);
+            yield return new WaitUntil(() => doneGeneratingDoors);
             
             StartCoroutine(GenerateDungeon());
         }
         else
         {
+            totalWatch.Stop();
             totalGeneratedRoomsList.Add(roomsMade);
             totalRoomsRemovedList.Add(removedRooms);
             totalRoomsFinalDungeonList.Add(splitRooms.Count);
-            DungeonGenerationTimesList.Add(Math.Round(watch.Elapsed.TotalMilliseconds, 3));
+            DungeonGenerationTimesList.Add(Math.Round(perDungeonWatch.Elapsed.TotalMilliseconds, 3));
             
             Debug.Log("-----");
-            Debug.Log("Total generation time in seconds: " + Math.Round(DungeonGenerationTimesList.Sum() / 1000, 3));
-            Debug.Log("Average generation time in milliseconds: " + DungeonGenerationTimesList.Average(), this);
+            //Debug.Log("Total generation time in seconds: " + Math.Round(DungeonGenerationTimesList.Sum() / 1000, 3));
+            Debug.Log("Total generation time: " + Math.Round(totalWatch.Elapsed.TotalMilliseconds, 3));
+            Debug.Log("Average rooms generation time: " + DungeonGenerationTimesList.Average(), this);
             Debug.Log("Average rooms generated: " + totalGeneratedRoomsList.Average(), this);
             Debug.Log("Average rooms removed: " + totalRoomsRemovedList.Average(), this);
             Debug.Log("Average rooms final: " + totalRoomsFinalDungeonList.Average(), this);
@@ -180,7 +171,7 @@ public class DungeonGenerator : MonoBehaviour
             StartCoroutine(DrawDungeonContinuesly());
         }
         
-        doorGenerator.GenerateDoors();
+        doorGenerator.StartGenerator(splitRooms, visualDelay, wallThickness, seed, true);
     }
     
     #endregion
@@ -266,20 +257,22 @@ public class DungeonGenerator : MonoBehaviour
     }
     
     [Button("Clear Dungeon")]
-    void ClearDungeon()
+    void ClearGenerator()
     {
         StopAllCoroutines();
         
-        totalGeneratedRoomsList = null;
-        totalRoomsRemovedList = null;
-        totalRoomsFinalDungeonList = null;
-        DungeonGenerationTimesList = null;
+        totalGeneratedRoomsList.Clear();
+        totalRoomsRemovedList.Clear();
+        totalRoomsFinalDungeonList.Clear();
+        DungeonGenerationTimesList.Clear();
         
         seed = startSeed;
         
         splitRooms.Clear();
         
         DungeonsGeneratedCount = 0;
+        
+        if (doorGenerator) doorGenerator.ClearGenerator();
     }
     
     bool IsEven(int value) => value % 2 == 0;
