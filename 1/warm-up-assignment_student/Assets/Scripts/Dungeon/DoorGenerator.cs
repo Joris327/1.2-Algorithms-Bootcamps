@@ -9,8 +9,8 @@ public class DoorGenerator : MonoBehaviour
 {
     DungeonGenerator dungeonGenerator;
     
-    List<RectRoom> roomsList = new();
-    readonly List<RectRoom> doorsList = new();
+    List<RectInt> roomsList = new();
+    readonly List<RectInt> doorsList = new();
     
     System.Diagnostics.Stopwatch watch = new();
     float visualDelay = 0;
@@ -19,15 +19,18 @@ public class DoorGenerator : MonoBehaviour
     System.Random random = new();
     int seed = 0;
     bool printStatistics = true;
+    Graph<RectInt> nodeGraph;
     
     List<double> generationTimesList = new();
     List<int> doorCountsList = new();
     
     [SerializeField] float debugDoorHeight = 5;
     
-    public void StartGenerator(List<RectRoom> pRoomsList, float pVisualDelay, int pWallThickness, int pSeed, bool pPrintStatistics)
+    public void StartGenerator(List<RectInt> pRoomsList, float pVisualDelay, int pWallThickness, int pSeed, bool pPrintStatistics,  Graph<RectInt> pNodeGraph)
     {
         ClearGenerator();
+        
+        DebugDrawingBatcher.BatchCall(DrawDoors);
         
         if (!TryGetComponent(out dungeonGenerator)) Debug.Log(name + "could not find DungeonGenerator on itself.", this);
         
@@ -38,6 +41,7 @@ public class DoorGenerator : MonoBehaviour
         seed = pSeed;
         random = new(seed);
         printStatistics = pPrintStatistics;
+        nodeGraph = pNodeGraph;
         
         StartCoroutine(GenerateDoors());
     }
@@ -45,35 +49,41 @@ public class DoorGenerator : MonoBehaviour
     public void ClearGenerator()
     {
         StopCoroutine(GenerateDoors());
-        StopCoroutine(DrawDoorsContinuesly());
         
         roomsList.Clear();
         doorsList.Clear();
         generationTimesList.Clear();
         doorCountsList.Clear();
+        nodeGraph = new();
     }
     
     IEnumerator GenerateDoors()
     {
-        if (printStatistics) StartCoroutine(DrawDoorsContinuesly());
-        
         watch = System.Diagnostics.Stopwatch.StartNew();
         
-        foreach(RectRoom room1 in roomsList)
+        for (int i = 0; i < roomsList.Count; i++)
         {
+            RectInt room1 = roomsList[i];
+            
             if (visualDelay > 0)
             {
-                DrawDoors(visualDelay);
+                DrawDoors();
                 yield return new WaitForSeconds(visualDelay);
             }
             
-            foreach(RectRoom room2 in roomsList)
+            for (int j = i+1; j < roomsList.Count; j++)
             {
-                if (room1 == room2) continue;
-                if (!AlgorithmsUtils.Intersects(room1, room2)) continue;
-                if (room1.connections.Contains(room2)) continue;
+                RectInt room2 = roomsList[j];
                 
-                RectRoom overLap = AlgorithmsUtils.Intersect(room1, room2);
+                if (room1 == room2)
+                {
+                    Debug.Log("overlap");
+                    continue;
+                }
+                if (!AlgorithmsUtils.Intersects(room1, room2)) continue;
+                if (nodeGraph.GetEdges(room1).Contains(room2)) continue;
+                
+                RectInt overLap = AlgorithmsUtils.Intersect(room1, room2);
                 
                 if (overLap.width >= (wallThickness * 4) + doorSize)
                 {
@@ -87,11 +97,10 @@ public class DoorGenerator : MonoBehaviour
                     else yPos = room1.yMin;
                         
                     doorsList.Add(new(xPos, yPos, doorSize, doorSize));
-                    room1.connections.Add(room2);
-                    room2.connections.Add(room1);
                     continue;
                 }
-                else if (overLap.height >= (wallThickness * 4) + doorSize)
+                
+                if (overLap.height >= (wallThickness * 4) + doorSize)
                 {
                     int yPos = random.Next(
                         Math.Max(room1.yMin, room2.yMin) + (wallThickness * 2),
@@ -103,8 +112,6 @@ public class DoorGenerator : MonoBehaviour
                     else xPos = room1.xMin;
                     
                     doorsList.Add(new(xPos, yPos, doorSize, doorSize));
-                    room1.connections.Add(room2);
-                    room2.connections.Add(room1);
                     continue;
                 }
             }
@@ -136,20 +143,23 @@ public class DoorGenerator : MonoBehaviour
         dungeonGenerator.doneGeneratingDoors = true;
     }
     
-    IEnumerator DrawDoorsContinuesly(float duration = 0)
+    void DrawDoors()
     {
-        while (true)
+        foreach (RectInt door in doorsList)
         {
-            DrawDoors(duration);
-            yield return null;
+            AlgorithmsUtils.DebugRectInt(door, Color.blue, 0, false, debugDoorHeight);
         }
-    }
-    
-    void DrawDoors(float duration = 0)
-    {
-        foreach (RectRoom door in doorsList)
+        
+        foreach (var node in nodeGraph.GetGraph())
         {
-            AlgorithmsUtils.DebugRectRoom(door, Color.blue, duration, false, debugDoorHeight);
+            foreach (RectInt edge in node.Value)
+            {
+                Vector3 nodeCenter = new(node.Key.center.x, 0, node.Key.center.y);
+                Vector3 keyCenter = new (edge.center.x, 0, edge.center.y);
+                
+                Debug.DrawLine(nodeCenter, keyCenter, Color.red);
+                AlgorithmsUtils.DebugRectInt(new(new((int)node.Key.center.x, (int)node.Key.center.y), new(1,1)), Color.white);
+            }
         }
     }
 }
