@@ -61,40 +61,28 @@ public class DoorGenerator : MonoBehaviour
     {
         watch = System.Diagnostics.Stopwatch.StartNew();
         
-        for (int i = 0; i < roomsList.Count; i++)
+        foreach (RectInt room in roomsList)
         {
-            RectInt room1 = roomsList[i];
-            
-            if (visualDelay > 0)
+            foreach (RectInt connectedRoom in nodeGraph.GetEdges(room))
             {
-                DrawDoors();
-                yield return new WaitForSeconds(visualDelay);
-            }
-            
-            for (int j = i+1; j < roomsList.Count; j++)
-            {
-                RectInt room2 = roomsList[j];
-                
-                if (room1 == room2)
+                if (visualDelay > 0)
                 {
-                    Debug.Log("overlap");
-                    continue;
+                    DrawDoors();
+                    yield return new WaitForSeconds(visualDelay);
                 }
-                if (!AlgorithmsUtils.Intersects(room1, room2)) continue;
-                //if (nodeGraph.GetEdges(room1).Contains(room2)) continue;
-                
-                RectInt overLap = AlgorithmsUtils.Intersect(room1, room2);
+        
+                RectInt overLap = AlgorithmsUtils.Intersect(room, connectedRoom);
                 
                 if (overLap.width >= (wallThickness * 4) + doorSize)
                 {
                     int xPos = random.Next(
-                        Math.Max(room1.xMin, room2.xMin) + (wallThickness * 2), 
-                        Math.Min(room1.xMax, room2.xMax) - (wallThickness * 2) - doorSize + 1
+                        Math.Max(room.xMin, connectedRoom.xMin) + (wallThickness * 2), 
+                        Math.Min(room.xMax, connectedRoom.xMax) - (wallThickness * 2) - doorSize + 1
                     );
                     
                     int yPos;
-                    if (room1.y < room2.y) yPos = room1.yMax - doorSize;
-                    else yPos = room1.yMin;
+                    if (room.y < connectedRoom.y) yPos = room.yMax - doorSize;
+                    else yPos = room.yMin;
                         
                     doorsList.Add(new(xPos, yPos, doorSize, doorSize));
                     continue;
@@ -103,19 +91,75 @@ public class DoorGenerator : MonoBehaviour
                 if (overLap.height >= (wallThickness * 4) + doorSize)
                 {
                     int yPos = random.Next(
-                        Math.Max(room1.yMin, room2.yMin) + (wallThickness * 2),
-                        Math.Min(room1.yMax, room2.yMax) - (wallThickness * 2) - doorSize + 1
+                        Math.Max(room.yMin, connectedRoom.yMin) + (wallThickness * 2),
+                        Math.Min(room.yMax, connectedRoom.yMax) - (wallThickness * 2) - doorSize + 1
                     );
                     
                     int xPos;
-                    if (room1.x < room2.x) xPos = room1.xMax - doorSize;
-                    else xPos = room1.xMin;
+                    if (room.x < connectedRoom.x) xPos = room.xMax - doorSize;
+                    else xPos = room.xMin;
                     
                     doorsList.Add(new(xPos, yPos, doorSize, doorSize));
                     continue;
                 }
             }
         }
+        
+        // for (int i = 0; i < roomsList.Count; i++)
+        // {
+        //     RectInt room1 = roomsList[i];
+            
+        //     if (visualDelay > 0)
+        //     {
+        //         DrawDoors();
+        //         yield return new WaitForSeconds(visualDelay);
+        //     }
+            
+        //     for (int j = i+1; j < roomsList.Count; j++)
+        //     {
+        //         RectInt room2 = roomsList[j];
+                
+        //         if (room1 == room2)
+        //         {
+        //             Debug.Log("overlap");
+        //             continue;
+        //         }
+        //         if (!AlgorithmsUtils.Intersects(room1, room2)) continue;
+        //         //if (nodeGraph.GetEdges(room1).Contains(room2)) continue;
+                
+        //         RectInt overLap = AlgorithmsUtils.Intersect(room1, room2);
+                
+        //         if (overLap.width >= (wallThickness * 4) + doorSize)
+        //         {
+        //             int xPos = random.Next(
+        //                 Math.Max(room1.xMin, room2.xMin) + (wallThickness * 2), 
+        //                 Math.Min(room1.xMax, room2.xMax) - (wallThickness * 2) - doorSize + 1
+        //             );
+                    
+        //             int yPos;
+        //             if (room1.y < room2.y) yPos = room1.yMax - doorSize;
+        //             else yPos = room1.yMin;
+                        
+        //             doorsList.Add(new(xPos, yPos, doorSize, doorSize));
+        //             continue;
+        //         }
+                
+        //         if (overLap.height >= (wallThickness * 4) + doorSize)
+        //         {
+        //             int yPos = random.Next(
+        //                 Math.Max(room1.yMin, room2.yMin) + (wallThickness * 2),
+        //                 Math.Min(room1.yMax, room2.yMax) - (wallThickness * 2) - doorSize + 1
+        //             );
+                    
+        //             int xPos;
+        //             if (room1.x < room2.x) xPos = room1.xMax - doorSize;
+        //             else xPos = room1.xMin;
+                    
+        //             doorsList.Add(new(xPos, yPos, doorSize, doorSize));
+        //             continue;
+        //         }
+        //     }
+        // }
         
         watch.Stop();
         
