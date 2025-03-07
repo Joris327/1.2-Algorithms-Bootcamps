@@ -81,7 +81,7 @@ public class DoorGenerator : MonoBehaviour
                     continue;
                 }
                 if (!AlgorithmsUtils.Intersects(room1, room2)) continue;
-                if (nodeGraph.GetEdges(room1).Contains(room2)) continue;
+                //if (nodeGraph.GetEdges(room1).Contains(room2)) continue;
                 
                 RectInt overLap = AlgorithmsUtils.Intersect(room1, room2);
                 
@@ -147,7 +147,7 @@ public class DoorGenerator : MonoBehaviour
     {
         foreach (RectInt door in doorsList)
         {
-            AlgorithmsUtils.DebugRectInt(door, Color.blue, 0, false, debugDoorHeight);
+            AlgorithmsUtils.DebugRectInt(door, Color.blue);
         }
         
         foreach (var node in nodeGraph.GetGraph())
