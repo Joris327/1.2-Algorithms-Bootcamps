@@ -1,34 +1,17 @@
 using System.Collections.Generic;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class RectRoom
 {
-    public RectInt roomData;
-    public readonly Dictionary<RectRoom, RectInt> connections; //other room, door between these rooms
+    public RectInt data;
     
-    public RectRoom(RectInt pData, Dictionary<RectRoom, RectInt> pConnections)
+    public RectRoom(RectInt pData)
     {
-        roomData = pData;
-        connections = pConnections;
+        data = pData;
     }
     
-    public void AddConnection(RectRoom room, RectInt door) => connections.Add(room, door);
     
-    public RectInt GetConnection(RectRoom room)
-    {
-        if (connections.ContainsKey(room)) return connections[room];
-        else return new();
-    }
-    
-    public void SetWidth(int value)
-    {
-        roomData.width = value;
-    }
-    
-    public void SetHeight(int value)
-    {
-        roomData.height = value;
-    }
     
     // public int x;
     // public int y;

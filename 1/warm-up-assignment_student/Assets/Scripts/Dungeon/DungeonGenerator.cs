@@ -14,9 +14,9 @@ public class DungeonGenerator : MonoBehaviour
     DoorGenerator doorGenerator;
     [HideInInspector] public bool doneGeneratingDoors = false;
     
-    List<RectRoom> splitRooms = new();
-    readonly Queue<RectRoom> toDoQueue = new();
-    //Graph<RectRoom> nodeGraph = new();
+    List<RectInt> splitRooms = new();
+    readonly Queue<RectInt> toDoQueue = new();
+    Graph<RectInt> nodeGraph = new();
     
     System.Diagnostics.Stopwatch perDungeonWatch = new();
     System.Diagnostics.Stopwatch totalWatch = new();
@@ -95,7 +95,7 @@ public class DungeonGenerator : MonoBehaviour
         totalRoomsRemovedList.Clear();
         totalRoomsFinalDungeonList.Clear();
         DungeonGenerationTimesList.Clear();
-        //nodeGraph = new();
+        nodeGraph = new();
         
         seed = startSeed;
         
@@ -127,9 +127,9 @@ public class DungeonGenerator : MonoBehaviour
         
         perDungeonWatch = System.Diagnostics.Stopwatch.StartNew();
         
-        RectRoom firstRoom = new(new(0, 0, worldWidth, worldHeight), new());
+        RectInt firstRoom = new(0, 0, worldWidth, worldHeight);
         toDoQueue.Enqueue(firstRoom);
-        //nodeGraph.AddNode(firstRoom); 
+        nodeGraph.AddNode(firstRoom); 
         
         if ( !CanBeSplit(toDoQueue.Peek()))
         {
@@ -181,7 +181,7 @@ public class DungeonGenerator : MonoBehaviour
             totalRoomsRemovedList.Add(removedRooms);
             totalRoomsFinalDungeonList.Add(splitRooms.Count);
             DungeonGenerationTimesList.Add(Math.Round(perDungeonWatch.Elapsed.TotalMilliseconds, 3));
-            doorGenerator.StartGenerator(splitRooms, visualDelay, wallThickness, seed, false/*, nodeGraph*/);
+            doorGenerator.StartGenerator(splitRooms, visualDelay, wallThickness, seed, false, nodeGraph);
             yield return new WaitUntil(() => doneGeneratingDoors);
             
             StartCoroutine(GenerateDungeon());
@@ -203,67 +203,51 @@ public class DungeonGenerator : MonoBehaviour
             Debug.Log("Amount of dungeons generated: " + DungeonsGeneratedCount, this);
         }
         
-        doorGenerator.StartGenerator(splitRooms, visualDelay, wallThickness, seed, true/*, nodeGraph*/);
-        
-        foreach (RectRoom room in splitRooms)
-        {
-            Debug.Log(room.connections.Count);
-        }
+        doorGenerator.StartGenerator(splitRooms, visualDelay, wallThickness, seed, true, nodeGraph);
     }
     
     #endregion
     #region Room Splitting
     
-    void SplitRoom(RectRoom room, ref int roomsMade)
+    void SplitRoom(RectInt room, ref int roomsMade)
     {
         SplitAbility splitMode = DetermineSplitAbility(room);
         
         if (splitMode == SplitAbility.cannot) return;
         if (splitMode == SplitAbility.bothSides) splitMode = (SplitAbility)random.Next(1, 3);
         
-        RectRoom newRoom1;
-        RectRoom newRoom2 = new(new(room.roomData.x, room.roomData.y, room.roomData.width, room.roomData.height), new());
+        RectInt newRoom1;
+        RectInt newRoom2 = new(room.x, room.y, room.width, room.height);
         
         int adjustedMinRoomSize = minRoomSize + wallThickness * 3;
         
         if (splitMode == SplitAbility.vertically)
         {
-            int splitPos = random.Next(adjustedMinRoomSize, room.roomData.width - adjustedMinRoomSize);
+            int splitPos = random.Next(adjustedMinRoomSize, room.width - adjustedMinRoomSize);
             
-            newRoom1 = new(new(room.roomData.x + splitPos - wallThickness, room.roomData.y, room.roomData.width - splitPos + wallThickness, room.roomData.height), new());
-            newRoom2.roomData.width = splitPos + wallThickness;
+            newRoom1 = new(room.x + splitPos - wallThickness, room.y, room.width - splitPos + wallThickness, room.height);
+            newRoom2.width = splitPos + wallThickness;
         }
         else
         {
-            int splitPos = random.Next(adjustedMinRoomSize, room.roomData.height - adjustedMinRoomSize);
+            int splitPos = random.Next(adjustedMinRoomSize, room.height - adjustedMinRoomSize);
             
-            newRoom1 = new(new(room.roomData.x, room.roomData.y + splitPos - wallThickness, room.roomData.width, room.roomData.height - splitPos + wallThickness), new());
-            newRoom2.roomData.height = splitPos + wallThickness;
+            newRoom1 = new(room.x, room.y + splitPos - wallThickness, room.width, room.height - splitPos + wallThickness);
+            newRoom2.height = splitPos + wallThickness;
         }
         
-        newRoom1.connections.Add(newRoom2, new());
-        newRoom2.connections.Add(newRoom1, new());
+        nodeGraph.AddNode(newRoom1);
+        nodeGraph.AddNode(newRoom2);
         
-        foreach (var connection in room.connections)
+        nodeGraph.AddEdge(newRoom1, newRoom2);
+        
+        foreach (RectInt nearbyRoom in nodeGraph.GetEdges(room))
         {
-            if (AlgorithmsUtils.Intersects(newRoom1.roomData, connection.Key.roomData)) newRoom1.connections.Add(connection.Key, new());
-            if (AlgorithmsUtils.Intersects(newRoom2.roomData, connection.Key.roomData)) newRoom2.connections.Add(connection.Key, new());
-            
-            //connection.Key.connections.Remove(room);
+            if (AlgorithmsUtils.Intersects(newRoom1, nearbyRoom)) nodeGraph.AddEdge(newRoom1, nearbyRoom);
+            if (AlgorithmsUtils.Intersects(newRoom2, nearbyRoom)) nodeGraph.AddEdge(newRoom2, nearbyRoom);
         }
         
-        //nodeGraph.AddNode(newRoom1);
-        //nodeGraph.AddNode(newRoom2);
-        
-        //nodeGraph.AddEdge(newRoom1, newRoom2);
-        
-        // foreach (RectInt nearbyRoom in nodeGraph.GetEdges(room))
-        // {
-        //     if (AlgorithmsUtils.Intersects(newRoom1, nearbyRoom)) nodeGraph.AddEdge(newRoom1, nearbyRoom);
-        //     if (AlgorithmsUtils.Intersects(newRoom2, nearbyRoom)) nodeGraph.AddEdge(newRoom2, nearbyRoom);
-        // }
-        
-        // nodeGraph.RemoveNode(room);
+        nodeGraph.RemoveNode(room);
         
         
         if (CanBeSplit(newRoom2)) toDoQueue.Enqueue(newRoom2);
@@ -282,17 +266,17 @@ public class DungeonGenerator : MonoBehaviour
     {
         if (splitRooms != null && splitRooms.Count > 0)
         {
-            foreach(RectRoom room in splitRooms)
+            foreach(RectInt room in splitRooms)
             {
-                AlgorithmsUtils.DebugRectInt(room.roomData, Color.yellow, 0, false, debugWallHeight);
+                AlgorithmsUtils.DebugRectInt(room, Color.yellow, 0, false, debugWallHeight);
             }
         }
         
         if (toDoQueue != null && toDoQueue.Count > 0)
         {
-            foreach(RectRoom room in toDoQueue)
+            foreach(RectInt room in toDoQueue)
             {
-                AlgorithmsUtils.DebugRectInt(room.roomData, Color.yellow, 0, false, debugWallHeight);
+                AlgorithmsUtils.DebugRectInt(room, Color.yellow, 0, false, debugWallHeight);
             }
         }
         
@@ -305,21 +289,21 @@ public class DungeonGenerator : MonoBehaviour
     
     bool IsEven(int value) => value % 2 == 0;
     
-    bool CanBeSplit(RectRoom room) => room.roomData.width > (minRoomSize * 2) + (wallThickness * 6) || room.roomData.height > (minRoomSize * 2) + (wallThickness * 6);
+    bool CanBeSplit(RectInt room) => room.width > (minRoomSize * 2) + (wallThickness * 6) || room.height > (minRoomSize * 2) + (wallThickness * 6);
     
-    bool MustBeSplit(RectRoom room) => room.roomData.width > (maxRoomSize - (wallThickness * 4)) || room.roomData.height > (maxRoomSize - (wallThickness * 4));
+    bool MustBeSplit(RectInt room) => room.width > (maxRoomSize - (wallThickness * 4)) || room.height > (maxRoomSize - (wallThickness * 4));
     
-    SplitAbility DetermineSplitAbility(RectRoom room)
+    SplitAbility DetermineSplitAbility(RectInt room)
     {
         //the smallest size at which a room can be split and produce 2 new rooms equal or bigger than minRoomSize.
         int splitSize = (minRoomSize * 2) + (wallThickness * 6);
         
         //if both sides cannot be split
-        if (room.roomData.width <= splitSize && room.roomData.height <= splitSize) return SplitAbility.cannot;
+        if (room.width <= splitSize && room.height <= splitSize) return SplitAbility.cannot;
         
         //if one side cannot be split
-        if (room.roomData.width <= splitSize) return SplitAbility.horizontally;
-        if (room.roomData.height <= splitSize) return SplitAbility.vertically;
+        if (room.width <= splitSize) return SplitAbility.horizontally;
+        if (room.height <= splitSize) return SplitAbility.vertically;
         
         //if both sides can be split
         return SplitAbility.bothSides;

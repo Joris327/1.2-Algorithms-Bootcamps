@@ -499,7 +499,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   doneGeneratingDoors: 1
   seed: 0
-  startSeed: 2
+  startSeed: 0
   amountToGenerate: 1
   visualDelay: 0
   worldWidth: 50
