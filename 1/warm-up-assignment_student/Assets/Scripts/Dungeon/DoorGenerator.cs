@@ -9,7 +9,7 @@ public class DoorGenerator : MonoBehaviour
 {
     DungeonGenerator dungeonGenerator;
     
-    List<RectInt> roomsList = new();
+    List<RectRoom> roomsList = new();
     readonly List<RectInt> doorsList = new();
     
     System.Diagnostics.Stopwatch watch = new();
@@ -19,14 +19,14 @@ public class DoorGenerator : MonoBehaviour
     System.Random random = new();
     int seed = 0;
     bool printStatistics = true;
-    Graph<RectInt> nodeGraph;
+    //Graph<RectInt> nodeGraph;
     
     List<double> generationTimesList = new();
     List<int> doorCountsList = new();
     
     [SerializeField] float debugDoorHeight = 5;
     
-    public void StartGenerator(List<RectInt> pRoomsList, float pVisualDelay, int pWallThickness, int pSeed, bool pPrintStatistics,  Graph<RectInt> pNodeGraph)
+    public void StartGenerator(List<RectRoom> pRoomsList, float pVisualDelay, int pWallThickness, int pSeed, bool pPrintStatistics/*,  Graph<RectInt> pNodeGraph*/)
     {
         ClearGenerator();
         
@@ -41,7 +41,7 @@ public class DoorGenerator : MonoBehaviour
         seed = pSeed;
         random = new(seed);
         printStatistics = pPrintStatistics;
-        nodeGraph = pNodeGraph;
+        //nodeGraph = pNodeGraph;
         
         StartCoroutine(GenerateDoors());
     }
@@ -54,52 +54,58 @@ public class DoorGenerator : MonoBehaviour
         doorsList.Clear();
         generationTimesList.Clear();
         doorCountsList.Clear();
-        nodeGraph = new();
+        //nodeGraph = new();
     }
     
     IEnumerator GenerateDoors()
     {
         watch = System.Diagnostics.Stopwatch.StartNew();
         
-        foreach (RectInt room in roomsList)
+        foreach (RectRoom room in roomsList)
         {
-            foreach (RectInt connectedRoom in nodeGraph.GetEdges(room))
+            foreach (var connectedRoom in room.connections/*nodeGraph.GetEdges(room)*/)
             {
+                if (connectedRoom.Value != new RectInt()) continue;
+                
                 if (visualDelay > 0)
                 {
                     DrawDoors();
                     yield return new WaitForSeconds(visualDelay);
                 }
         
-                RectInt overLap = AlgorithmsUtils.Intersect(room, connectedRoom);
+                RectInt overLap = AlgorithmsUtils.Intersect(room.roomData, connectedRoom.Key.roomData);
                 
                 if (overLap.width >= (wallThickness * 4) + doorSize)
                 {
                     int xPos = random.Next(
-                        Math.Max(room.xMin, connectedRoom.xMin) + (wallThickness * 2), 
-                        Math.Min(room.xMax, connectedRoom.xMax) - (wallThickness * 2) - doorSize + 1
+                        Math.Max(room.roomData.xMin, connectedRoom.Key.roomData.xMin) + (wallThickness * 2), 
+                        Math.Min(room.roomData.xMax, connectedRoom.Key.roomData.xMax) - (wallThickness * 2) - doorSize + 1
                     );
                     
                     int yPos;
-                    if (room.y < connectedRoom.y) yPos = room.yMax - doorSize;
-                    else yPos = room.yMin;
-                        
-                    doorsList.Add(new(xPos, yPos, doorSize, doorSize));
+                    if (room.roomData.y < connectedRoom.Key.roomData.y) yPos = room.roomData.yMax - doorSize;
+                    else yPos = room.roomData.yMin;
+                    
+                    RectInt newDoor = new(xPos, yPos, doorSize, doorSize);
+                    doorsList.Add(newDoor);
+                    //room.connections[connectedRoom.Key] = newDoor;
                     continue;
                 }
                 
                 if (overLap.height >= (wallThickness * 4) + doorSize)
                 {
                     int yPos = random.Next(
-                        Math.Max(room.yMin, connectedRoom.yMin) + (wallThickness * 2),
-                        Math.Min(room.yMax, connectedRoom.yMax) - (wallThickness * 2) - doorSize + 1
+                        Math.Max(room.roomData.yMin, connectedRoom.Key.roomData.yMin) + (wallThickness * 2),
+                        Math.Min(room.roomData.yMax, connectedRoom.Key.roomData.yMax) - (wallThickness * 2) - doorSize + 1
                     );
                     
                     int xPos;
-                    if (room.x < connectedRoom.x) xPos = room.xMax - doorSize;
-                    else xPos = room.xMin;
+                    if (room.roomData.x < connectedRoom.Key.roomData.x) xPos = room.roomData.xMax - doorSize;
+                    else xPos = room.roomData.xMin;
                     
-                    doorsList.Add(new(xPos, yPos, doorSize, doorSize));
+                    RectInt newDoor = new(xPos, yPos, doorSize, doorSize);
+                    doorsList.Add(newDoor);
+                    //room.connections[connectedRoom.Key] = newDoor;
                     continue;
                 }
             }
@@ -194,16 +200,16 @@ public class DoorGenerator : MonoBehaviour
             AlgorithmsUtils.DebugRectInt(door, Color.blue);
         }
         
-        foreach (var node in nodeGraph.GetGraph())
-        {
-            foreach (RectInt edge in node.Value)
-            {
-                Vector3 nodeCenter = new(node.Key.center.x, 0, node.Key.center.y);
-                Vector3 keyCenter = new (edge.center.x, 0, edge.center.y);
+        // foreach (var node in nodeGraph.GetGraph())
+        // {
+        //     foreach (RectInt edge in node.Value)
+        //     {
+        //         Vector3 nodeCenter = new(node.Key.center.x, 0, node.Key.center.y);
+        //         Vector3 keyCenter = new (edge.center.x, 0, edge.center.y);
                 
-                Debug.DrawLine(nodeCenter, keyCenter, Color.red);
-                AlgorithmsUtils.DebugRectInt(new(new((int)node.Key.center.x, (int)node.Key.center.y), new(1,1)), Color.white);
-            }
-        }
+        //         Debug.DrawLine(nodeCenter, keyCenter, Color.red);
+        //         AlgorithmsUtils.DebugRectInt(new(new((int)node.Key.center.x, (int)node.Key.center.y), new(1,1)), Color.white);
+        //     }
+        // }
     }
 }
