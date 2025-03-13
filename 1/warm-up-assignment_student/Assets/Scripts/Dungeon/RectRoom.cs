@@ -4,17 +4,17 @@ using UnityEngine;
 public class RectRoom
 {
     public RectInt roomData;
-    public readonly Dictionary<RectRoom, RectInt> connections; //other room, door between these rooms
+    public readonly Dictionary<RectRoom, RectDoor> connections; //other room, door between these rooms
     
-    public RectRoom(RectInt pData, Dictionary<RectRoom, RectInt> pConnections)
+    public RectRoom(RectInt pData, Dictionary<RectRoom, RectDoor> pConnections)
     {
         roomData = pData;
         connections = pConnections;
     }
     
-    public void AddConnection(RectRoom room, RectInt door) => connections.Add(room, door);
+    public void AddConnection(RectRoom room, RectDoor door) => connections.Add(room, door);
     
-    public RectInt GetConnection(RectRoom room)
+    public RectDoor GetConnection(RectRoom room)
     {
         if (connections.ContainsKey(room)) return connections[room];
         else return new();

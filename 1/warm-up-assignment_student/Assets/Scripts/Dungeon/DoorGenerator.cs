@@ -10,7 +10,7 @@ public class DoorGenerator : MonoBehaviour
     DungeonGenerator dungeonGenerator;
     
     List<RectRoom> roomsList = new();
-    readonly List<RectInt> doorsList = new();
+    readonly List<RectDoor> doorsList = new();
     
     System.Diagnostics.Stopwatch watch = new();
     float visualDelay = 0;
@@ -65,14 +65,14 @@ public class DoorGenerator : MonoBehaviour
         {
             foreach (var connectedRoom in room.connections/*nodeGraph.GetEdges(room)*/)
             {
-                if (connectedRoom.Value != new RectInt()) continue;
+                if (connectedRoom.Value != null) continue;
                 
                 if (visualDelay > 0)
                 {
                     DrawDoors();
                     yield return new WaitForSeconds(visualDelay);
                 }
-        
+                
                 RectInt overLap = AlgorithmsUtils.Intersect(room.roomData, connectedRoom.Key.roomData);
                 
                 if (overLap.width >= (wallThickness * 4) + doorSize)
@@ -86,13 +86,11 @@ public class DoorGenerator : MonoBehaviour
                     if (room.roomData.y < connectedRoom.Key.roomData.y) yPos = room.roomData.yMax - doorSize;
                     else yPos = room.roomData.yMin;
                     
-                    RectInt newDoor = new(xPos, yPos, doorSize, doorSize);
-                    doorsList.Add(newDoor);
-                    //room.connections[connectedRoom.Key] = newDoor;
-                    continue;
+                    RectInt newDoorData = new(xPos, yPos, doorSize, doorSize);
+                    room.connections[connectedRoom.Key].doorData = newDoorData;
+                    doorsList.Add(room.connections[connectedRoom.Key]);
                 }
-                
-                if (overLap.height >= (wallThickness * 4) + doorSize)
+                else if (overLap.height >= (wallThickness * 4) + doorSize)
                 {
                     int yPos = random.Next(
                         Math.Max(room.roomData.yMin, connectedRoom.Key.roomData.yMin) + (wallThickness * 2),
@@ -103,10 +101,9 @@ public class DoorGenerator : MonoBehaviour
                     if (room.roomData.x < connectedRoom.Key.roomData.x) xPos = room.roomData.xMax - doorSize;
                     else xPos = room.roomData.xMin;
                     
-                    RectInt newDoor = new(xPos, yPos, doorSize, doorSize);
-                    doorsList.Add(newDoor);
-                    //room.connections[connectedRoom.Key] = newDoor;
-                    continue;
+                    RectInt newDoorData = new(xPos, yPos, doorSize, doorSize);
+                    room.connections[connectedRoom.Key].doorData = newDoorData;
+                    doorsList.Add(room.connections[connectedRoom.Key]);
                 }
             }
         }
@@ -195,9 +192,9 @@ public class DoorGenerator : MonoBehaviour
     
     void DrawDoors()
     {
-        foreach (RectInt door in doorsList)
+        foreach (RectDoor door in doorsList)
         {
-            AlgorithmsUtils.DebugRectInt(door, Color.blue);
+            AlgorithmsUtils.DebugRectInt(door.doorData, Color.blue);
         }
         
         // foreach (var node in nodeGraph.GetGraph())
