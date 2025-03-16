@@ -502,8 +502,8 @@ MonoBehaviour:
   startSeed: 0
   amountToGenerate: 1
   visualDelay: 0
-  worldWidth: 50
-  worldHeight: 50
+  worldWidth: 1000
+  worldHeight: 1000
   minRoomSize: 10
   maxRoomSize: 20
   roomsLimit: 100000
@@ -523,7 +523,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e2a3ad034a360b24e8763ce8ca1c1182, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  debugDoorHeight: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
