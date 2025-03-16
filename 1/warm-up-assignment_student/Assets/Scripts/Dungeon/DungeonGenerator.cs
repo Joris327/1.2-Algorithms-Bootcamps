@@ -16,12 +16,11 @@ public class DungeonGenerator : MonoBehaviour
     
     List<RectRoom> splitRooms = new();
     readonly Queue<RectRoom> toDoQueue = new();
-    //Graph<RectRoom> nodeGraph = new();
+    Graph<RectRoom> nodeGraph = new();
     
     System.Diagnostics.Stopwatch perDungeonWatch = new();
     System.Diagnostics.Stopwatch totalWatch = new();
     System.Random random = new();
-    
     
     //serialized fields
     [Tooltip("The seed used to generate the dungeon. If 0, will generate new random seed for each dungeon. Else will use the same seed for every dungeon generated.")]
@@ -56,16 +55,16 @@ public class DungeonGenerator : MonoBehaviour
     List<int> totalRoomsFinalDungeonList = new();
     List<double> DungeonGenerationTimesList = new();
     int DungeonsGeneratedCount = 0;
-    
+
     //notes for tree map:
     //store for each room which rooms they touch.
     //take the last room in the list, connect to each touching room that does not have a connection yet.
     //go down the list, if a room has a connection, connect to every other room that does not yet have a connection.
     //this should result in a tree/spider web nodegraph.
     //for removing rooms: take rooms that only have one connection (and rooms) or maybe 0, and remove them until a certain percentage has been removed.
-    
+
     #region Generator
-    
+
     [Button("Generate")]
     void Start()
     {
@@ -80,7 +79,7 @@ public class DungeonGenerator : MonoBehaviour
         totalRoomsFinalDungeonList = new(amountToGenerate);
         DungeonGenerationTimesList = new(amountToGenerate);
         
-        DebugDrawingBatcher.BatchCall(DrawDungeon);
+        DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
         
         totalWatch = System.Diagnostics.Stopwatch.StartNew();
         StartCoroutine(GenerateDungeon());
@@ -95,7 +94,7 @@ public class DungeonGenerator : MonoBehaviour
         totalRoomsRemovedList.Clear();
         totalRoomsFinalDungeonList.Clear();
         DungeonGenerationTimesList.Clear();
-        //nodeGraph = new();
+        nodeGraph = new();
         
         seed = startSeed;
         
@@ -106,7 +105,7 @@ public class DungeonGenerator : MonoBehaviour
         if (doorGenerator) doorGenerator.ClearGenerator();
         
         Debug.ClearDeveloperConsole();
-        DebugDrawingBatcher.ClearCalls();
+        DebugDrawingBatcher.GetInstance().ClearCalls();
     }
     
     IEnumerator GenerateDungeon()
@@ -127,9 +126,9 @@ public class DungeonGenerator : MonoBehaviour
         
         perDungeonWatch = System.Diagnostics.Stopwatch.StartNew();
         
-        RectRoom firstRoom = new(new(0, 0, worldWidth, worldHeight), new());
+        RectRoom firstRoom = new(new(0, 0, worldWidth, worldHeight));
         toDoQueue.Enqueue(firstRoom);
-        //nodeGraph.AddNode(firstRoom); 
+        nodeGraph.AddNode(firstRoom); 
         
         if ( !CanBeSplit(toDoQueue.Peek()))
         {
@@ -143,7 +142,7 @@ public class DungeonGenerator : MonoBehaviour
         {
             if (visualDelay > 0) yield return new WaitForSeconds(visualDelay);
             
-            if (splitRooms.Count > guaranteedSplits && random.Next(0, 100) > chanceToSplit && !MustBeSplit(toDoQueue.Peek()))
+            if (splitRooms.Count > guaranteedSplits && random.Next(0, 100) > chanceToSplit && !MustBeSplit(toDoQueue.Peek())) //decide if we're going to split or not
             {
                 splitRooms.Add(toDoQueue.Dequeue());
                 continue;
@@ -181,7 +180,7 @@ public class DungeonGenerator : MonoBehaviour
             totalRoomsRemovedList.Add(removedRooms);
             totalRoomsFinalDungeonList.Add(splitRooms.Count);
             DungeonGenerationTimesList.Add(Math.Round(perDungeonWatch.Elapsed.TotalMilliseconds, 3));
-            doorGenerator.StartGenerator(splitRooms, visualDelay, wallThickness, seed, false/*, nodeGraph*/);
+            doorGenerator.StartGenerator(splitRooms, visualDelay, wallThickness, seed, false, nodeGraph);
             yield return new WaitUntil(() => doneGeneratingDoors);
             
             StartCoroutine(GenerateDungeon());
@@ -203,12 +202,7 @@ public class DungeonGenerator : MonoBehaviour
             Debug.Log("Amount of dungeons generated: " + DungeonsGeneratedCount, this);
         }
         
-        doorGenerator.StartGenerator(splitRooms, visualDelay, wallThickness, seed, true/*, nodeGraph*/);
-        
-        foreach (RectRoom room in splitRooms)
-        {
-            Debug.Log(room.connections.Count);
-        }
+        doorGenerator.StartGenerator(splitRooms, visualDelay, wallThickness, seed, true, nodeGraph);
     }
     
     #endregion
@@ -218,11 +212,15 @@ public class DungeonGenerator : MonoBehaviour
     {
         SplitAbility splitMode = DetermineSplitAbility(room);
         
-        if (splitMode == SplitAbility.cannot) return;
+        if (splitMode == SplitAbility.cannot)
+        {
+            Debug.Log("trigger");
+            return;
+        }
         if (splitMode == SplitAbility.bothSides) splitMode = (SplitAbility)random.Next(1, 3);
         
         RectRoom newRoom1;
-        RectRoom newRoom2 = new(new(room.roomData.x, room.roomData.y, room.roomData.width, room.roomData.height), new());
+        RectRoom newRoom2 = new(new(room.roomData.x, room.roomData.y, room.roomData.width, room.roomData.height));
         
         int adjustedMinRoomSize = minRoomSize + wallThickness * 3;
         
@@ -230,41 +228,31 @@ public class DungeonGenerator : MonoBehaviour
         {
             int splitPos = random.Next(adjustedMinRoomSize, room.roomData.width - adjustedMinRoomSize);
             
-            newRoom1 = new(new(room.roomData.x + splitPos - wallThickness, room.roomData.y, room.roomData.width - splitPos + wallThickness, room.roomData.height), new());
+            newRoom1 = new(new(room.roomData.x + splitPos - wallThickness, room.roomData.y, room.roomData.width - splitPos + wallThickness, room.roomData.height));
             newRoom2.roomData.width = splitPos + wallThickness;
         }
         else
         {
             int splitPos = random.Next(adjustedMinRoomSize, room.roomData.height - adjustedMinRoomSize);
             
-            newRoom1 = new(new(room.roomData.x, room.roomData.y + splitPos - wallThickness, room.roomData.width, room.roomData.height - splitPos + wallThickness), new());
+            newRoom1 = new(new(room.roomData.x, room.roomData.y + splitPos - wallThickness, room.roomData.width, room.roomData.height - splitPos + wallThickness));
             newRoom2.roomData.height = splitPos + wallThickness;
         }
         
-        newRoom1.connections.Add(newRoom2, new());
-        newRoom2.connections.Add(newRoom1, new());
+        nodeGraph.AddNode(newRoom1);
+        nodeGraph.AddNode(newRoom2);
         
-        foreach (var connection in room.connections)
+        nodeGraph.AddEdge(newRoom1, newRoom2);
+        
+        foreach (RectRoom nearbyRoom in nodeGraph.GetNeighbors(room))
         {
-            if (AlgorithmsUtils.Intersects(newRoom1.roomData, connection.Key.roomData)) newRoom1.connections.Add(connection.Key, new());
-            if (AlgorithmsUtils.Intersects(newRoom2.roomData, connection.Key.roomData)) newRoom2.connections.Add(connection.Key, new());
+            nodeGraph.GetNeighbors(nearbyRoom).Remove(room);
             
-            //connection.Key.connections.Remove(room);
+            if (AlgorithmsUtils.Intersects(newRoom1.roomData, nearbyRoom.roomData)) nodeGraph.AddEdge(newRoom1, nearbyRoom);
+            if (AlgorithmsUtils.Intersects(newRoom2.roomData, nearbyRoom.roomData)) nodeGraph.AddEdge(newRoom2, nearbyRoom);
         }
         
-        //nodeGraph.AddNode(newRoom1);
-        //nodeGraph.AddNode(newRoom2);
-        
-        //nodeGraph.AddEdge(newRoom1, newRoom2);
-        
-        // foreach (RectInt nearbyRoom in nodeGraph.GetEdges(room))
-        // {
-        //     if (AlgorithmsUtils.Intersects(newRoom1, nearbyRoom)) nodeGraph.AddEdge(newRoom1, nearbyRoom);
-        //     if (AlgorithmsUtils.Intersects(newRoom2, nearbyRoom)) nodeGraph.AddEdge(newRoom2, nearbyRoom);
-        // }
-        
-        // nodeGraph.RemoveNode(room);
-        
+        nodeGraph.RemoveNode(room);
         
         if (CanBeSplit(newRoom2)) toDoQueue.Enqueue(newRoom2);
         else splitRooms.Add(newRoom2);
@@ -280,19 +268,17 @@ public class DungeonGenerator : MonoBehaviour
     
     void DrawDungeon()
     {
-        if (splitRooms != null && splitRooms.Count > 0)
+        foreach (var room in nodeGraph.GetGraph())
         {
-            foreach(RectRoom room in splitRooms)
+            AlgorithmsUtils.DebugRectInt(room.Key.roomData, Color.yellow, 0, false, debugWallHeight);
+            
+            foreach (RectDoor d in room.Key.doors)
             {
-                AlgorithmsUtils.DebugRectInt(room.roomData, Color.yellow, 0, false, debugWallHeight);
-            }
-        }
-        
-        if (toDoQueue != null && toDoQueue.Count > 0)
-        {
-            foreach(RectRoom room in toDoQueue)
-            {
-                AlgorithmsUtils.DebugRectInt(room.roomData, Color.yellow, 0, false, debugWallHeight);
+                AlgorithmsUtils.DebugRectInt(d.doorData, Color.blue, 0, false, debugWallHeight);
+                
+                Vector3 doorCenter = new (d.doorData.center.x, 0, d.doorData.center.y);
+                Vector3 roomCenter = new (room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
+                Debug.DrawLine(doorCenter, roomCenter);
             }
         }
         

@@ -7,30 +7,26 @@ using UnityEngine;
 [RequireComponent(typeof(DungeonGenerator))]
 public class DoorGenerator : MonoBehaviour
 {
+    //input
     DungeonGenerator dungeonGenerator;
-    
     List<RectRoom> roomsList = new();
-    readonly List<RectDoor> doorsList = new();
-    
-    System.Diagnostics.Stopwatch watch = new();
-    float visualDelay = 0;
-    int wallThickness = 0;
-    int doorSize = 0;
+    Graph<RectRoom> nodeGraph;
     System.Random random = new();
     int seed = 0;
-    bool printStatistics = true;
-    //Graph<RectInt> nodeGraph;
+    int wallThickness = 0;
+    int doorSize = 0;
+    float visualDelay = 0;
     
+    //statictics
+    bool printStatistics = true;
+    System.Diagnostics.Stopwatch watch = new();
     List<double> generationTimesList = new();
     List<int> doorCountsList = new();
-    
-    [SerializeField] float debugDoorHeight = 5;
-    
-    public void StartGenerator(List<RectRoom> pRoomsList, float pVisualDelay, int pWallThickness, int pSeed, bool pPrintStatistics/*,  Graph<RectInt> pNodeGraph*/)
+    int doorsCount = 0;
+
+    public void StartGenerator(List<RectRoom> pRoomsList, float pVisualDelay, int pWallThickness, int pSeed, bool pPrintStatistics,  Graph<RectRoom> pNodeGraph)
     {
         ClearGenerator();
-        
-        DebugDrawingBatcher.BatchCall(DrawDoors);
         
         if (!TryGetComponent(out dungeonGenerator)) Debug.Log(name + "could not find DungeonGenerator on itself.", this);
         
@@ -41,7 +37,7 @@ public class DoorGenerator : MonoBehaviour
         seed = pSeed;
         random = new(seed);
         printStatistics = pPrintStatistics;
-        //nodeGraph = pNodeGraph;
+        nodeGraph = pNodeGraph;
         
         StartCoroutine(GenerateDoors());
     }
@@ -51,10 +47,10 @@ public class DoorGenerator : MonoBehaviour
         StopCoroutine(GenerateDoors());
         
         roomsList.Clear();
-        doorsList.Clear();
         generationTimesList.Clear();
         doorCountsList.Clear();
-        //nodeGraph = new();
+        nodeGraph = null;
+        doorsCount = 0;
     }
     
     IEnumerator GenerateDoors()
@@ -63,118 +59,59 @@ public class DoorGenerator : MonoBehaviour
         
         foreach (RectRoom room in roomsList)
         {
-            foreach (var connectedRoom in room.connections/*nodeGraph.GetEdges(room)*/)
+            foreach (RectRoom connectedRoom in nodeGraph.GetNeighbors(room))
             {
-                if (connectedRoom.Value != null) continue;
+                if (room.doors.Any(connectedRoom.doors.Contains)) continue; //this line takes about 50% of the time of this entire foreach loop
                 
-                if (visualDelay > 0)
-                {
-                    DrawDoors();
-                    yield return new WaitForSeconds(visualDelay);
-                }
+                if (visualDelay > 0) yield return new WaitForSeconds(visualDelay);
                 
-                RectInt overLap = AlgorithmsUtils.Intersect(room.roomData, connectedRoom.Key.roomData);
+                RectInt overLap = AlgorithmsUtils.Intersect(room.roomData, connectedRoom.roomData);
+                RectDoor newDoor;
+                int xPos;
+                int yPos;
                 
                 if (overLap.width >= (wallThickness * 4) + doorSize)
                 {
-                    int xPos = random.Next(
-                        Math.Max(room.roomData.xMin, connectedRoom.Key.roomData.xMin) + (wallThickness * 2), 
-                        Math.Min(room.roomData.xMax, connectedRoom.Key.roomData.xMax) - (wallThickness * 2) - doorSize + 1
+                    xPos = random.Next(
+                        Math.Max(room.roomData.xMin, connectedRoom.roomData.xMin) + (wallThickness * 2), 
+                        Math.Min(room.roomData.xMax, connectedRoom.roomData.xMax) - (wallThickness * 2) - doorSize + 1
                     );
                     
-                    int yPos;
-                    if (room.roomData.y < connectedRoom.Key.roomData.y) yPos = room.roomData.yMax - doorSize;
+                    if (room.roomData.y < connectedRoom.roomData.y) yPos = room.roomData.yMax - doorSize;
                     else yPos = room.roomData.yMin;
-                    
-                    RectInt newDoorData = new(xPos, yPos, doorSize, doorSize);
-                    room.connections[connectedRoom.Key].doorData = newDoorData;
-                    doorsList.Add(room.connections[connectedRoom.Key]);
                 }
                 else if (overLap.height >= (wallThickness * 4) + doorSize)
                 {
-                    int yPos = random.Next(
-                        Math.Max(room.roomData.yMin, connectedRoom.Key.roomData.yMin) + (wallThickness * 2),
-                        Math.Min(room.roomData.yMax, connectedRoom.Key.roomData.yMax) - (wallThickness * 2) - doorSize + 1
+                    yPos = random.Next(
+                        Math.Max(room.roomData.yMin, connectedRoom.roomData.yMin) + (wallThickness * 2),
+                        Math.Min(room.roomData.yMax, connectedRoom.roomData.yMax) - (wallThickness * 2) - doorSize + 1
                     );
                     
-                    int xPos;
-                    if (room.roomData.x < connectedRoom.Key.roomData.x) xPos = room.roomData.xMax - doorSize;
+                    if (room.roomData.x < connectedRoom.roomData.x) xPos = room.roomData.xMax - doorSize;
                     else xPos = room.roomData.xMin;
-                    
-                    RectInt newDoorData = new(xPos, yPos, doorSize, doorSize);
-                    room.connections[connectedRoom.Key].doorData = newDoorData;
-                    doorsList.Add(room.connections[connectedRoom.Key]);
                 }
+                else continue;
+
+                newDoor = new(new(xPos, yPos, doorSize, doorSize));
+                
+                room.doors.Add(newDoor);
+                connectedRoom.doors.Add(newDoor);
+                
+                doorsCount++;
             }
         }
-        
-        // for (int i = 0; i < roomsList.Count; i++)
-        // {
-        //     RectInt room1 = roomsList[i];
-            
-        //     if (visualDelay > 0)
-        //     {
-        //         DrawDoors();
-        //         yield return new WaitForSeconds(visualDelay);
-        //     }
-            
-        //     for (int j = i+1; j < roomsList.Count; j++)
-        //     {
-        //         RectInt room2 = roomsList[j];
-                
-        //         if (room1 == room2)
-        //         {
-        //             Debug.Log("overlap");
-        //             continue;
-        //         }
-        //         if (!AlgorithmsUtils.Intersects(room1, room2)) continue;
-        //         //if (nodeGraph.GetEdges(room1).Contains(room2)) continue;
-                
-        //         RectInt overLap = AlgorithmsUtils.Intersect(room1, room2);
-                
-        //         if (overLap.width >= (wallThickness * 4) + doorSize)
-        //         {
-        //             int xPos = random.Next(
-        //                 Math.Max(room1.xMin, room2.xMin) + (wallThickness * 2), 
-        //                 Math.Min(room1.xMax, room2.xMax) - (wallThickness * 2) - doorSize + 1
-        //             );
-                    
-        //             int yPos;
-        //             if (room1.y < room2.y) yPos = room1.yMax - doorSize;
-        //             else yPos = room1.yMin;
-                        
-        //             doorsList.Add(new(xPos, yPos, doorSize, doorSize));
-        //             continue;
-        //         }
-                
-        //         if (overLap.height >= (wallThickness * 4) + doorSize)
-        //         {
-        //             int yPos = random.Next(
-        //                 Math.Max(room1.yMin, room2.yMin) + (wallThickness * 2),
-        //                 Math.Min(room1.yMax, room2.yMax) - (wallThickness * 2) - doorSize + 1
-        //             );
-                    
-        //             int xPos;
-        //             if (room1.x < room2.x) xPos = room1.xMax - doorSize;
-        //             else xPos = room1.xMin;
-                    
-        //             doorsList.Add(new(xPos, yPos, doorSize, doorSize));
-        //             continue;
-        //         }
-        //     }
-        // }
         
         watch.Stop();
         
         if (!printStatistics)
         {
             generationTimesList.Add(watch.Elapsed.TotalMilliseconds);
-            doorCountsList.Add(doorsList.Count);
+            doorCountsList.Add(doorsCount);
         }
         else if (generationTimesList.Count > 0)
         {
             generationTimesList.Add(watch.Elapsed.TotalMilliseconds);
-            doorCountsList.Add(doorsList.Count);
+            doorCountsList.Add(doorsCount);
             
             Debug.Log("-");
             Debug.Log("Average doors Generation Time: " + Math.Round(generationTimesList.Average(), 3));
@@ -184,29 +121,9 @@ public class DoorGenerator : MonoBehaviour
         {
             Debug.Log("-");
             Debug.Log("Doors Generation Time: " + Math.Round(watch.Elapsed.TotalMilliseconds, 3));
-            Debug.Log("Door count: " + doorsList.Count);
+            Debug.Log("Door count: " + doorsCount);
         }
         
         dungeonGenerator.doneGeneratingDoors = true;
-    }
-    
-    void DrawDoors()
-    {
-        foreach (RectDoor door in doorsList)
-        {
-            AlgorithmsUtils.DebugRectInt(door.doorData, Color.blue);
-        }
-        
-        // foreach (var node in nodeGraph.GetGraph())
-        // {
-        //     foreach (RectInt edge in node.Value)
-        //     {
-        //         Vector3 nodeCenter = new(node.Key.center.x, 0, node.Key.center.y);
-        //         Vector3 keyCenter = new (edge.center.x, 0, edge.center.y);
-                
-        //         Debug.DrawLine(nodeCenter, keyCenter, Color.red);
-        //         AlgorithmsUtils.DebugRectInt(new(new((int)node.Key.center.x, (int)node.Key.center.y), new(1,1)), Color.white);
-        //     }
-        // }
     }
 }

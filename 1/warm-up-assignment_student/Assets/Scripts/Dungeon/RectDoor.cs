@@ -4,13 +4,8 @@ public class RectDoor
 {
     public RectInt doorData;
     
-    public RectDoor(RectInt pDoordata)
+    public RectDoor(RectInt pDoordata = new())
     {
         doorData = pDoordata;
-    }
-    
-    public RectDoor()
-    {
-        doorData = new();
     }
 }

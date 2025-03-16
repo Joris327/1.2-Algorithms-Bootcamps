@@ -3,7 +3,33 @@ using UnityEngine;
 
 public class Graph<T>
 {
-    readonly Dictionary<T, List<T>> graph = new();
+    readonly Dictionary<T, List<T>> adjacencyList = new();
+    
+    public void Clear() 
+    { 
+        adjacencyList.Clear(); 
+    }
+    
+    public void RemoveNode(T node)
+    {
+        // if (adjacencyList.ContainsKey(node))
+        // {
+        //     adjacencyList.Remove(node);
+        // }
+
+        // foreach (var key in adjacencyList.Keys)
+        // {
+        //     adjacencyList[key].Remove(node);
+        // }
+        foreach (var connectedNode in adjacencyList[node])
+        {
+            adjacencyList[connectedNode].Remove(node);
+        }
+        
+        adjacencyList.Remove(node);
+    }
+    
+    public List<T> GetNodes() => new(adjacencyList.Keys);
     
     public void AddNode(T node)
     {
@@ -13,37 +39,49 @@ public class Graph<T>
             return;
         }
         
-        if (graph.ContainsKey(node)) return;
+        if (adjacencyList.ContainsKey(node)) return;
         
-        graph.Add(node, new());
-    }
-    
-    public void RemoveNode(T node)
-    {
-        foreach (var connectedNode in graph[node])
-        {
-            graph[connectedNode].Remove(node);
-        }
-        
-        graph.Remove(node);
+        adjacencyList.Add(node, new());
     }
     
     public void AddEdge(T nodeA, T nodeB)
     {
-        if (nodeA == null || nodeB == null)
+        if (nodeA == null)
         {
-            Debug.LogError("Node A or B was NULL");
+            Debug.LogError("The given node (nodeA) was NULL");
+            return;
+        }
+        if (nodeB == null)
+        {
+            Debug.LogError("The given node (nodeB) was NULL");
             return;
         }
         
-        if (!graph.ContainsKey(nodeA)) return;
-        if (!graph.ContainsKey(nodeB)) return;
+        if (!adjacencyList.ContainsKey(nodeA)) AddNode(nodeA);
+        if (!adjacencyList.ContainsKey(nodeB)) AddNode(nodeB);
         
-        if (!graph[nodeA].Contains(nodeB)) graph[nodeA].Add(nodeB);
-        if (!graph[nodeB].Contains(nodeA)) graph[nodeB].Add(nodeA);
+        if (!adjacencyList[nodeA].Contains(nodeB)) adjacencyList[nodeA].Add(nodeB);
+        if (!adjacencyList[nodeB].Contains(nodeA)) adjacencyList[nodeB].Add(nodeA);
     }
     
-    public List<T> GetEdges(T node)
+    public void RemoveEdge(T nodeA, T nodeB)
+    {
+        if (nodeA == null)
+        {
+            Debug.LogError("The given node (nodeA) was NULL");
+            return;
+        }
+        if (nodeB == null)
+        {
+            Debug.LogError("The given node (nodeB) was NULL");
+            return;
+        }
+        
+        if (adjacencyList.ContainsKey(nodeA)) adjacencyList[nodeA].Remove(nodeB);
+        if (adjacencyList.ContainsKey(nodeB)) adjacencyList[nodeB].Remove(nodeA);
+    }
+    
+    public List<T> GetNeighbors(T node)
     {
         if (node == null)
         {
@@ -51,14 +89,20 @@ public class Graph<T>
             return null;
         }
         
-        return new(graph[node]);
+        //return new(graph[node]);
+        return adjacencyList[node];
+    }
+    
+    public int GetNodeCount()
+    {
+        return adjacencyList.Count;
     }
     
     public void PrintGraph()
     {
-        if (graph.Count == 0) Debug.Log("NodeGraph is empty.");
+        if (adjacencyList.Count == 0) Debug.Log("NodeGraph is empty.");
         
-        foreach (var node in graph)
+        foreach (var node in adjacencyList)
         {
             Debug.Log("Key: " + node.Key);
             
@@ -71,6 +115,18 @@ public class Graph<T>
     
     public Dictionary<T, List<T>> GetGraph()
     {
-        return graph;
+        return adjacencyList;
+    }
+    
+    // Breadth-First Search (BFS)
+    public void BFS(T startNode)
+    {
+        /* */
+    }
+
+    // Depth-First Search (DFS)
+    public void DFS(T startNode)
+    {
+        /* */
     }
 }
