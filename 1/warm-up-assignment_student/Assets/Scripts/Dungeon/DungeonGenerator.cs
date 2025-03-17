@@ -272,6 +272,15 @@ public class DungeonGenerator : MonoBehaviour
         {
             AlgorithmsUtils.DebugRectInt(room.Key.roomData, Color.yellow, 0, false, debugWallHeight);
             
+            //lines between rooms
+            // foreach (RectRoom r in room.Value)
+            // {
+            //     Vector3 rCenter = new (r.roomData.center.x, 0, r.roomData.center.y);
+            //     Vector3 roomCenter = new (room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
+            //     Debug.DrawLine(rCenter, roomCenter, Color.red);
+            // }
+            
+            //line between room and doors
             foreach (RectDoor d in room.Key.doors)
             {
                 AlgorithmsUtils.DebugRectInt(d.doorData, Color.blue, 0, false, debugWallHeight);

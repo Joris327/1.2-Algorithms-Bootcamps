@@ -59,8 +59,13 @@ public class DoorGenerator : MonoBehaviour
         
         foreach (RectRoom room in roomsList)
         {
-            foreach (RectRoom connectedRoom in nodeGraph.GetNeighbors(room))
+            List<RectRoom> connectionsList = new(nodeGraph.GetNeighbors(room));
+            
+            //foreach (RectRoom connectedRoom in nodeGraph.GetNeighbors(room))
+            for (int i = 0; i < connectionsList.Count; i++)
             {
+                RectRoom connectedRoom = connectionsList[i];
+                
                 if (room.doors.Any(connectedRoom.doors.Contains)) continue; //this line takes about 50% of the time of this entire foreach loop
                 
                 if (visualDelay > 0) yield return new WaitForSeconds(visualDelay);
@@ -90,7 +95,11 @@ public class DoorGenerator : MonoBehaviour
                     if (room.roomData.x < connectedRoom.roomData.x) xPos = room.roomData.xMax - doorSize;
                     else xPos = room.roomData.xMin;
                 }
-                else continue;
+                else
+                {
+                    nodeGraph.RemoveEdge(room, connectedRoom);
+                    continue;
+                }
 
                 newDoor = new(new(xPos, yPos, doorSize, doorSize));
                 
@@ -100,6 +109,8 @@ public class DoorGenerator : MonoBehaviour
                 doorsCount++;
             }
         }
+        
+        EnsureConnectivity();
         
         watch.Stop();
         
@@ -125,5 +136,11 @@ public class DoorGenerator : MonoBehaviour
         }
         
         dungeonGenerator.doneGeneratingDoors = true;
+    }
+    
+    void EnsureConnectivity()
+    {
+        int connected = nodeGraph.BFS(roomsList[nodeGraph.GetNodeCount()/2]);
+        Debug.Log("nodes: " + nodeGraph.GetNodeCount() + ", connected: " + connected);
     }
 }

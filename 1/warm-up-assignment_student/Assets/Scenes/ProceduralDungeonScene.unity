@@ -499,7 +499,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   doneGeneratingDoors: 1
   seed: 0
-  startSeed: 0
+  startSeed: 1
   amountToGenerate: 1
   visualDelay: 0
   worldWidth: 1000
@@ -530,5 +530,5 @@ SceneRoots:
   - {fileID: 330585546}
   - {fileID: 410087041}
   - {fileID: 635530934}
-  - {fileID: 1174684355}
   - {fileID: 2033840193}
+  - {fileID: 1174684355}

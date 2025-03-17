@@ -77,8 +77,8 @@ public class Graph<T>
             return;
         }
         
-        if (adjacencyList.ContainsKey(nodeA)) adjacencyList[nodeA].Remove(nodeB);
-        if (adjacencyList.ContainsKey(nodeB)) adjacencyList[nodeB].Remove(nodeA);
+        adjacencyList[nodeA].Remove(nodeB);
+        adjacencyList[nodeB].Remove(nodeA);
     }
     
     public List<T> GetNeighbors(T node)
@@ -119,14 +119,56 @@ public class Graph<T>
     }
     
     // Breadth-First Search (BFS)
-    public void BFS(T startNode)
+    public int BFS(T startNode)
     {
-        /* */
+        Queue<T> toDo = new();
+        toDo.Enqueue(startNode);
+        
+        List<T> discovered = new()
+        {
+            startNode
+        };
+        
+        while (toDo.Count > 0)
+        {
+            T node = toDo.Dequeue();
+            
+            foreach (T connectedNode in adjacencyList[node])
+            {
+                if (discovered.Contains(connectedNode)) continue;
+                
+                toDo.Enqueue(connectedNode);
+                discovered.Add(connectedNode);
+            }
+        }
+        
+        return discovered.Count;
     }
 
     // Depth-First Search (DFS)
-    public void DFS(T startNode)
+    public int DFS(T startNode)
     {
-        /* */
+        Stack<T> toDo = new();
+        toDo.Push(startNode);
+        
+        List<T> discovered = new()
+        {
+            startNode
+        };
+        
+        while (toDo.Count > 0)
+        {
+            T node = toDo.Pop();
+            
+            foreach (T connectedNode in adjacencyList[node])
+            {
+                if (discovered.Contains(connectedNode)) continue;
+                
+                toDo.Push(connectedNode);
+                discovered.Add(connectedNode);
+            }
+        }
+        
+        return discovered.Count;
     }
 }
