@@ -10,6 +10,11 @@ public class Graph<T>
         adjacencyList.Clear(); 
     }
     
+    public bool HasKey(T key)
+    {
+        return adjacencyList.ContainsKey(key);
+    }
+    
     public void RemoveNode(T node)
     {
         // if (adjacencyList.ContainsKey(node))
@@ -119,15 +124,13 @@ public class Graph<T>
     }
     
     // Breadth-First Search (BFS)
-    public int BFS(T startNode)
+    public Graph<T> BFS(T startNode)
     {
         Queue<T> toDo = new();
         toDo.Enqueue(startNode);
         
-        List<T> discovered = new()
-        {
-            startNode
-        };
+        Graph<T> discovered = new();
+        discovered.AddNode(startNode);
         
         while (toDo.Count > 0)
         {
@@ -135,14 +138,15 @@ public class Graph<T>
             
             foreach (T connectedNode in adjacencyList[node])
             {
-                if (discovered.Contains(connectedNode)) continue;
+                if (discovered.HasKey(connectedNode)) continue;
                 
                 toDo.Enqueue(connectedNode);
-                discovered.Add(connectedNode);
+                discovered.AddNode(connectedNode);
+                discovered.AddEdge(node, connectedNode);
             }
         }
         
-        return discovered.Count;
+        return discovered;
     }
 
     // Depth-First Search (DFS)

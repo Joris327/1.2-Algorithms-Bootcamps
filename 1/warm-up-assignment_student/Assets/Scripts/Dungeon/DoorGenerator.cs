@@ -97,7 +97,7 @@ public class DoorGenerator : MonoBehaviour
                 }
                 else
                 {
-                    nodeGraph.RemoveEdge(room, connectedRoom);
+                    //nodeGraph.RemoveEdge(room, connectedRoom);
                     continue;
                 }
 
@@ -110,9 +110,9 @@ public class DoorGenerator : MonoBehaviour
             }
         }
         
-        EnsureConnectivity();
-        
         watch.Stop();
+        
+        EnsureConnectivity();
         
         if (!printStatistics)
         {
@@ -140,7 +140,12 @@ public class DoorGenerator : MonoBehaviour
     
     void EnsureConnectivity()
     {
-        int connected = nodeGraph.BFS(roomsList[nodeGraph.GetNodeCount()/2]);
+        System.Diagnostics.Stopwatch searchWatch = System.Diagnostics.Stopwatch.StartNew();
+        int connected = -1;//nodeGraph.BFS(roomsList[nodeGraph.GetNodeCount()/2]);
+        searchWatch.Stop();
+        
+        Debug.Log("-");
         Debug.Log("nodes: " + nodeGraph.GetNodeCount() + ", connected: " + connected);
+        Debug.Log("Search Time: " + Math.Round(searchWatch.Elapsed.TotalMilliseconds, 3));
     }
 }

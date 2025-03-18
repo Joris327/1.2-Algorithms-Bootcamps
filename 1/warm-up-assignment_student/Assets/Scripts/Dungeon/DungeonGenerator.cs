@@ -161,6 +161,8 @@ public class DungeonGenerator : MonoBehaviour
         
         splitRooms.TrimExcess();
         
+        MakeSpanningTree();
+        
         perDungeonWatch.Stop();
         
         DungeonsGeneratedCount++;
@@ -168,7 +170,7 @@ public class DungeonGenerator : MonoBehaviour
         if (amountToGenerate == 1)
         {
             totalWatch.Stop();
-            Debug.Log("---");
+            Debug.Log("---------------------------------");
             Debug.Log("Rooms Generation time: " + Math.Round(perDungeonWatch.Elapsed.TotalMilliseconds, 3), this);
             Debug.Log("Rooms generated: " + roomsMade, this);
             Debug.Log("Rooms removed: " + removedRooms, this);
@@ -193,7 +195,7 @@ public class DungeonGenerator : MonoBehaviour
             totalRoomsFinalDungeonList.Add(splitRooms.Count);
             DungeonGenerationTimesList.Add(Math.Round(perDungeonWatch.Elapsed.TotalMilliseconds, 3));
             
-            Debug.Log("-----");
+            Debug.Log("-------------------------------------------");
             Debug.Log("Total Rooms generation time: " + Math.Round(totalWatch.Elapsed.TotalMilliseconds, 3));
             Debug.Log("Average rooms generation time: " + DungeonGenerationTimesList.Average(), this);
             Debug.Log("Average rooms generated: " + totalGeneratedRoomsList.Average(), this);
@@ -203,6 +205,30 @@ public class DungeonGenerator : MonoBehaviour
         }
         
         doorGenerator.StartGenerator(splitRooms, visualDelay, wallThickness, seed, true, nodeGraph);
+    }
+    
+    void MakeSpanningTree()
+    {
+        // Graph<RectRoom> newGraph = new();
+        // Queue<RectRoom> toDo = new();
+        // RectRoom startNode = splitRooms[splitRooms.Count/2];
+        
+        // toDo.Enqueue(startNode);
+        
+        // while (toDo.Count > 0)
+        // {
+        //     foreach(RectRoom edge in nodeGraph.GetNeighbors(toDo.Peek()))
+        //     {
+        //         if (newGraph.HasKey(edge)) continue;
+                
+        //         newGraph.AddNode(edge);
+        //         newGraph.AddEdge(toDo.Dequeue(), edge);
+        //         toDo.Enqueue(edge);
+        //     }
+        // }
+        
+        // nodeGraph = newGraph;
+        nodeGraph = nodeGraph.BFS(splitRooms[splitRooms.Count/2]);
     }
     
     #endregion
@@ -247,9 +273,11 @@ public class DungeonGenerator : MonoBehaviour
         foreach (RectRoom nearbyRoom in nodeGraph.GetNeighbors(room))
         {
             nodeGraph.GetNeighbors(nearbyRoom).Remove(room);
+            RectInt room1Intersect = AlgorithmsUtils.Intersect(newRoom1.roomData, nearbyRoom.roomData);
+            RectInt room2intersect = AlgorithmsUtils.Intersect(newRoom2.roomData, nearbyRoom.roomData);
             
-            if (AlgorithmsUtils.Intersects(newRoom1.roomData, nearbyRoom.roomData)) nodeGraph.AddEdge(newRoom1, nearbyRoom);
-            if (AlgorithmsUtils.Intersects(newRoom2.roomData, nearbyRoom.roomData)) nodeGraph.AddEdge(newRoom2, nearbyRoom);
+            if (room1Intersect.width >= (wallThickness * 6) || room1Intersect.height >= (wallThickness * 6)) nodeGraph.AddEdge(newRoom1, nearbyRoom);
+            if (room2intersect.width >= (wallThickness * 6) || room2intersect.height >= (wallThickness * 6)) nodeGraph.AddEdge(newRoom2, nearbyRoom);
         }
         
         nodeGraph.RemoveNode(room);

@@ -452,6 +452,50 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1814779622
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1814779624}
+  - component: {fileID: 1814779623}
+  m_Layer: 0
+  m_Name: DebugDrawingBatcher_default
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1814779623
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1814779622}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: df3255f6be1dc4147ada123a18a52e4a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!4 &1814779624
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1814779622}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2033840191
 GameObject:
   m_ObjectHideFlags: 0
@@ -499,11 +543,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   doneGeneratingDoors: 1
   seed: 0
-  startSeed: 1
+  startSeed: 0
   amountToGenerate: 1
   visualDelay: 0
-  worldWidth: 1000
-  worldHeight: 1000
+  worldWidth: 100
+  worldHeight: 100
   minRoomSize: 10
   maxRoomSize: 20
   roomsLimit: 100000
@@ -532,3 +576,4 @@ SceneRoots:
   - {fileID: 635530934}
   - {fileID: 2033840193}
   - {fileID: 1174684355}
+  - {fileID: 1814779624}
