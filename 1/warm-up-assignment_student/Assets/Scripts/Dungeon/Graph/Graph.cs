@@ -11,7 +11,7 @@ public class Graph<T>
         adjacencyList.Clear(); 
     }
     
-    public bool HasKey(T key)
+    public bool ContainsKey(T key)
     {
         return adjacencyList.ContainsKey(key);
     }
@@ -87,7 +87,7 @@ public class Graph<T>
         adjacencyList[nodeB].Remove(nodeA);
     }
     
-    public List<T> GetNeighbors(T node)
+    public List<T> Neighbors(T node)
     {
         if (node == null)
         {
@@ -99,12 +99,12 @@ public class Graph<T>
         return adjacencyList[node];
     }
     
-    public int ConnectionCount(T node)
+    public int NeighborCount(T node)
     {
         return adjacencyList[node].Count;
     }
     
-    public int GetNodeCount()
+    public int KeyCount()
     {
         return adjacencyList.Count;
     }

@@ -198,7 +198,7 @@ public class DungeonGenerator : MonoBehaviour
         {
             if (visualDelay > 0) yield return new WaitForSeconds(visualDelay);
             
-            if (nodeGraph.GetNodeCount() > guaranteedSplits && !MustBeSplit(toDoQueue.Peek()) && random.Next(0, 100) > chanceToSplit) //decide if we're going to split or not
+            if (nodeGraph.KeyCount() > guaranteedSplits && !MustBeSplit(toDoQueue.Peek()) && random.Next(0, 100) > chanceToSplit) //decide if we're going to split or not
             {
                 nodeGraph.AddNode(toDoQueue.Dequeue());
                 continue;
@@ -260,9 +260,9 @@ public class DungeonGenerator : MonoBehaviour
         
         nodeGraph.AddEdge(newRoom1, newRoom2);
         
-        foreach (RectRoom nearbyRoom in nodeGraph.GetNeighbors(room))
+        foreach (RectRoom nearbyRoom in nodeGraph.Neighbors(room))
         {
-            nodeGraph.GetNeighbors(nearbyRoom).Remove(room);
+            nodeGraph.Neighbors(nearbyRoom).Remove(room);
             RectInt room1Intersect = AlgorithmsUtils.Intersect(newRoom1.roomData, nearbyRoom.roomData);
             RectInt room2intersect = AlgorithmsUtils.Intersect(newRoom2.roomData, nearbyRoom.roomData);
             
@@ -288,23 +288,24 @@ public class DungeonGenerator : MonoBehaviour
     {
         roomsRemoved = 0;
         
-        int amountToRemove = (int)(nodeGraph.GetNodeCount() * (roomRemovalPercentage / 100));
+        int amountToRemove = (int)(nodeGraph.KeyCount() * (roomRemovalPercentage / 100));
         
         while (roomsRemoved < amountToRemove)
         {
-            for (int i = 0; i < nodeGraph.GetNodeCount(); i++)
+            for (int i = 0; i < nodeGraph.KeyCount(); i++)
             {
                 if (visualDelay > 0) yield return new WaitForSeconds(visualDelay);
-                if (nodeGraph.GetNodeCount() == 1) break;
+                if (nodeGraph.KeyCount() == 1) break;
                 
                 RectRoom nodeToRemove = nodeGraph.ElementAt(i);
                 
-                if (nodeGraph.GetNeighbors(nodeToRemove).Count > 1) continue;
+                if (nodeGraph.Neighbors(nodeToRemove).Count > 1) continue;
                 
                 //spanningTree.RemoveNode(nodeToRemove);
                 nodeGraph.RemoveNode(nodeToRemove);
                 roomsRemoved++;
             }
+            if (nodeGraph.KeyCount() == 1) break;
         }
     }
     

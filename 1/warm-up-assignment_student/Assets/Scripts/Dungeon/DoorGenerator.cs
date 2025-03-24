@@ -59,7 +59,7 @@ public class DoorGenerator : MonoBehaviour
         
         foreach (RectRoom room in roomsList)
         {
-            List<RectRoom> connectionsList = new(nodeGraph.GetNeighbors(room));
+            List<RectRoom> connectionsList = new(nodeGraph.Neighbors(room));
             
             //foreach (RectRoom connectedRoom in nodeGraph.GetNeighbors(room))
             for (int i = 0; i < connectionsList.Count; i++)
@@ -145,7 +145,7 @@ public class DoorGenerator : MonoBehaviour
         searchWatch.Stop();
         
         Debug.Log("-");
-        Debug.Log("nodes: " + nodeGraph.GetNodeCount() + ", connected: " + connected);
+        Debug.Log("nodes: " + nodeGraph.KeyCount() + ", connected: " + connected);
         Debug.Log("Search Time: " + Math.Round(searchWatch.Elapsed.TotalMilliseconds, 3));
     }
 }
