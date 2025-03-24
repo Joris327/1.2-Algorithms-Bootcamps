@@ -131,6 +131,19 @@ public class Graph<T>
         return adjacencyList;
     }
     
+    // public void ConvertToSpanningTree()
+    // {
+    //     foreach (var item in adjacencyList)
+    //     {
+    //         //if (item.Value.Count < 3) continue;
+    //         for (int i = item.Value.Count-1; i > 2; i--)
+    //         {
+    //             GetNeighbors(item.Value[i]).Remove(item.Key);
+    //             item.Value.Remove(item.Key);
+    //         }
+    //     }
+    // }
+    
     // Breadth-First Search (BFS)
     public Graph<T> BFS(T startNode)
     {

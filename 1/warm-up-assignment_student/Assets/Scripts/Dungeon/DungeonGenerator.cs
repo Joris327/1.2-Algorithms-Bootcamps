@@ -141,6 +141,8 @@ public class DungeonGenerator : MonoBehaviour
         yield return GenerateRooms();
         roomGenerationWatch.Stop();
         
+        //nodeGraph.ConvertToSpanningTree();
+        
         System.Diagnostics.Stopwatch roomRemovalWatch = System.Diagnostics.Stopwatch.StartNew();
         yield return RemoveRooms();
         roomRemovalWatch.Stop();
@@ -283,53 +285,24 @@ public class DungeonGenerator : MonoBehaviour
     {
         roomsRemoved = 0;
         
-        //float roomsMultiplier = (100 - roomRemovalPercentage) / 100;
-        int amountToRemove = (int)(nodeGraph.GetNodeCount() * roomRemovalPercentage);
+        Graph<RectRoom> spanningTree = nodeGraph.BFS(nodeGraph.ElementAt(0));
         
-        List<RectRoom> removeList = new(amountToRemove);
-        foreach (var node in nodeGraph.GetGraph())
-        {
-            if (node.Value.Count < 3) continue;
-            else removeList.Add(node.Key);
-        }
+        int amountToRemove = (int)(nodeGraph.GetNodeCount() * (roomRemovalPercentage / 100));
         
-        if (removeList.Count < amountToRemove)
+        while (roomsRemoved < amountToRemove)
         {
-            foreach (RectRoom room in removeList)
+            for (int i = 0; i < spanningTree.GetNodeCount(); i++)
             {
                 if (visualDelay > 0) yield return new WaitForSeconds(visualDelay);
-                nodeGraph.RemoveNode(room);
+                RectRoom nodeToRemove = spanningTree.ElementAt(i);
+                
+                if (spanningTree.GetNeighbors(nodeToRemove).Count > 1) continue;
+                
+                spanningTree.RemoveNode(nodeToRemove);
+                nodeGraph.RemoveNode(nodeToRemove);
+                roomsRemoved++;
             }
         }
-        else
-        {
-            for (int i = 0; i < amountToRemove; i++)
-            {
-                if (visualDelay > 0) yield return new WaitForSeconds(visualDelay);
-                nodeGraph.RemoveNode(removeList[random.Next(removeList.Count)]);
-            }
-        }
-        
-        
-        // for (int i = nodeGraph.GetNodeCount()-1; i >= 0; i++)
-        // {
-        //     if (visualDelay > 0) yield return new WaitForSeconds(visualDelay);
-        //     RectRoom nodeToRemove = nodeGraph.ElementAt(random.Next(nodeGraph.GetNodeCount()));
-            
-        //     bool cannotRemove = false;
-        //     foreach (RectRoom room in nodeGraph.GetNeighbors(nodeToRemove))
-        //     {
-        //         if (nodeGraph.ConnectionCount(room) < 3)
-        //         {
-        //             cannotRemove = true;
-        //             break;
-        //         }
-        //     }
-        //     if (cannotRemove) continue;
-            
-        //     nodeGraph.RemoveNode(nodeToRemove);
-        //     roomsRemoved++;
-        // }
     }
     
     #endregion
@@ -494,12 +467,12 @@ public class DungeonGenerator : MonoBehaviour
             DebugExtension.DebugCircle(new(innerWall.center.x, 0, innerWall.center.y));
             
             //lines between rooms
-            // foreach (RectRoom r in room.Value)
-            // {
-            //     Vector3 rCenter = new (r.roomData.center.x, 0, r.roomData.center.y);
-            //     Vector3 roomCenter = new (room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
-            //     Debug.DrawLine(rCenter, roomCenter, Color.red);
-            // }
+            foreach (RectRoom r in room.Value)
+            {
+                Vector3 rCenter = new (r.roomData.center.x, 0, r.roomData.center.y);
+                Vector3 roomCenter = new (room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
+                Debug.DrawLine(rCenter, roomCenter, Color.red);
+            }
             
             //line between room and doors
             foreach (RectDoor d in room.Key.doors)
