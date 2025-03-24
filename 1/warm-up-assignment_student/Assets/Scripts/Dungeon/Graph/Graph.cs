@@ -87,7 +87,7 @@ public class Graph<T>
         adjacencyList[nodeB].Remove(nodeA);
     }
     
-    public List<T> Neighbors(T node)
+    public List<T> Edges(T node)
     {
         if (node == null)
         {
@@ -99,7 +99,7 @@ public class Graph<T>
         return adjacencyList[node];
     }
     
-    public int NeighborCount(T node)
+    public int EdgeCount(T node)
     {
         return adjacencyList[node].Count;
     }
@@ -108,6 +108,8 @@ public class Graph<T>
     {
         return adjacencyList.Count;
     }
+    
+    public T[] Keys() => adjacencyList.Keys.ToArray();
     
     public T ElementAt(int index) => adjacencyList.ElementAt(index).Key;
     

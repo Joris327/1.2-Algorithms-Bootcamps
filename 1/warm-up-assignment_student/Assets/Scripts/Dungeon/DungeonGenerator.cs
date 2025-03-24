@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NaughtyAttributes;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class DungeonGenerator : MonoBehaviour
 {
@@ -13,11 +14,10 @@ public class DungeonGenerator : MonoBehaviour
     enum SplitAbility { cannot, horizontally, vertically, bothSides }
     
     //private fields
-    DoorGenerator doorGenerator;
     [HideInInspector] public bool doneGeneratingDoors = false;
     int doorSize;
     
-    
+    LinkedList<RectRoom> roomsList = new();
     Graph<RectRoom> nodeGraph = new();
     
     System.Diagnostics.Stopwatch perDungeonWatch = new();
@@ -63,6 +63,7 @@ public class DungeonGenerator : MonoBehaviour
     int roomsGenerated = 0;
     int roomsSplit = 0;
     int roomsRemoved = 0;
+    int doorsGenerated = 0;
     
     #endregion
     #region Buttons
@@ -123,31 +124,37 @@ public class DungeonGenerator : MonoBehaviour
         DungeonGenerationTimesList.Clear();
         
         seed = startSeed;
-        nodeGraph = new();
-        
-        if (doorGenerator) doorGenerator.ClearGenerator();
+        nodeGraph.Clear();
+        roomsList.Clear();
         
         Debug.ClearDeveloperConsole();
         DebugDrawingBatcher.GetInstance().ClearCalls();
     }
     
-    IEnumerator Generate()
+    async Awaitable Generate()
     {
         System.Diagnostics.Stopwatch totalWatch = System.Diagnostics.Stopwatch.StartNew();
         
         SetupGenerator();
         
         System.Diagnostics.Stopwatch roomGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
-        yield return GenerateRooms();
+        await GenerateRooms();
         roomGenerationWatch.Stop();
+        
+        //Debug.Log(roomsList.Count);
+        //foreach (var room in roomsList) Debug.Log(room.roomData.size.magnitude);
+        
+        System.Diagnostics.Stopwatch roomRemovalWatch = System.Diagnostics.Stopwatch.StartNew();
+        await RemoveRooms();
+        roomRemovalWatch.Stop();
         
         System.Diagnostics.Stopwatch spanningTreeWatch = System.Diagnostics.Stopwatch.StartNew();
         nodeGraph.ConvertToSpanningTree();
         spanningTreeWatch.Stop();
         
-        System.Diagnostics.Stopwatch roomRemovalWatch = System.Diagnostics.Stopwatch.StartNew();
-        yield return RemoveRooms();
-        roomRemovalWatch.Stop();
+        System.Diagnostics.Stopwatch doorGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
+        await PlaceDoors();
+        doorGenerationWatch.Stop();
         
         totalWatch.Stop();
         dungeonsGeneratedCount++;
@@ -160,13 +167,16 @@ public class DungeonGenerator : MonoBehaviour
         Debug.Log("Convert to spanning tree time: " + Math.Round(spanningTreeWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("Room removal time: " + Math.Round(roomRemovalWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("    Rooms Removed: " + roomsRemoved);
+        Debug.Log("Door generation time: " + Math.Round(doorGenerationWatch.Elapsed.TotalMilliseconds, 3));
+        Debug.Log("    Doors generated: " + doorsGenerated);
         
         if (dungeonsGeneratedCount < dungeonsToGenerate) StartCoroutine(Generate());
     }
     
     void SetupGenerator()
     {
-        nodeGraph = new();
+        nodeGraph.Clear();
+        roomsList.Clear();
         
         DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
         
@@ -174,29 +184,31 @@ public class DungeonGenerator : MonoBehaviour
         else seed = startSeed;
         
         random = new(seed);
+        
+        roomsSplit = 0;
+        roomsGenerated = 0;
+        roomsRemoved = 0;
     }
     
     #endregion
     #region Room Splitting
-    IEnumerator GenerateRooms()
+    async Awaitable GenerateRooms()
     {
-        roomsSplit = 0;
-        roomsGenerated = 0;
-        
         Queue<RectRoom> toDoQueue = new();
         RectRoom firstRoom = new(new(0, 0, worldWidth, worldHeight));
         toDoQueue.Enqueue(firstRoom);
         nodeGraph.AddNode(firstRoom);
+        roomsList.AddFirst(firstRoom);
         
         if ( !CanBeSplit(toDoQueue.Peek()))
         {
             Debug.LogWarning("Unsplittable");
-            yield break;
+            return;
         }
         
         while (toDoQueue.Count > 0)
         {
-            if (visualDelay > 0) yield return new WaitForSeconds(visualDelay);
+            if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
             
             if (nodeGraph.KeyCount() > guaranteedSplits && !MustBeSplit(toDoQueue.Peek()) && random.Next(0, 100) > chanceToSplit) //decide if we're going to split or not
             {
@@ -257,12 +269,14 @@ public class DungeonGenerator : MonoBehaviour
         
         nodeGraph.AddNode(newRoom1);
         nodeGraph.AddNode(newRoom2);
+        AddRoomToSortedList(newRoom1);
+        AddRoomToSortedList(newRoom2);
         
         nodeGraph.AddEdge(newRoom1, newRoom2);
         
-        foreach (RectRoom nearbyRoom in nodeGraph.Neighbors(room))
+        foreach (RectRoom nearbyRoom in nodeGraph.Edges(room))
         {
-            nodeGraph.Neighbors(nearbyRoom).Remove(room);
+            nodeGraph.Edges(nearbyRoom).Remove(room);
             RectInt room1Intersect = AlgorithmsUtils.Intersect(newRoom1.roomData, nearbyRoom.roomData);
             RectInt room2intersect = AlgorithmsUtils.Intersect(newRoom2.roomData, nearbyRoom.roomData);
             
@@ -271,6 +285,7 @@ public class DungeonGenerator : MonoBehaviour
         }
         
         nodeGraph.RemoveNode(room);
+        roomsList.Remove(room);
         
         if (CanBeSplit(newRoom2)) toDoQueue.Enqueue(newRoom2);
         else nodeGraph.AddNode(newRoom2);
@@ -279,33 +294,156 @@ public class DungeonGenerator : MonoBehaviour
         else nodeGraph.AddNode(newRoom1);
     }
     
+    void AddRoomToSortedList(RectRoom newRoom)
+    {
+        LinkedListNode<RectRoom> node = roomsList.First;
+        while (node != null && node.Value.roomData.size.magnitude < newRoom.roomData.size.magnitude)
+        {
+            node = node.Next;
+        }
+        
+        if (node != null) roomsList.AddBefore(node, newRoom);
+        else roomsList.AddLast(newRoom);
+    }
+    
     bool OverlapsProperly(RectInt overlap) => overlap.width >= (wallThickness * 4) + doorSize || overlap.height >= (wallThickness * 4) + doorSize;
     
     #endregion
     #region Room Removal
     
-    IEnumerator RemoveRooms()
+    async Awaitable RemoveRooms()
     {
-        roomsRemoved = 0;
-        
+        //idea: biggest first search
         int amountToRemove = (int)(nodeGraph.KeyCount() * (roomRemovalPercentage / 100));
         
-        while (roomsRemoved < amountToRemove)
+        for (int i = 0; i < amountToRemove; i++)
         {
-            for (int i = 0; i < nodeGraph.KeyCount(); i++)
+            if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
+            if (nodeGraph.KeyCount() <= 1) break;
+            
+            LinkedListNode<RectRoom> room = roomsList.First;
+            while (room != null)
             {
-                if (visualDelay > 0) yield return new WaitForSeconds(visualDelay);
-                if (nodeGraph.KeyCount() == 1) break;
+                if (nodeGraph.EdgeCount(room.Value) < 3)
+                {
+                    roomsList.RemoveFirst();
+                    room = room.Next;
+                    continue;
+                }
                 
-                RectRoom nodeToRemove = nodeGraph.ElementAt(i);
-                
-                if (nodeGraph.Neighbors(nodeToRemove).Count > 1) continue;
-                
-                //spanningTree.RemoveNode(nodeToRemove);
-                nodeGraph.RemoveNode(nodeToRemove);
+                nodeGraph.RemoveNode(room.Value);
+                roomsList.RemoveFirst();
                 roomsRemoved++;
+                break;
             }
-            if (nodeGraph.KeyCount() == 1) break;
+        }
+        
+        // while (roomsRemoved < amountToRemove)
+        // {
+        //     for (int i = 0; i < nodeGraph.KeyCount(); i++)
+        //     {
+        //         if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
+        //         if (nodeGraph.KeyCount() == 1) break;
+                
+        //         RectRoom nodeToRemove = nodeGraph.ElementAt(i);
+                
+        //         if (nodeGraph.Edges(nodeToRemove).Count > 1) continue;
+                
+        //         //spanningTree.RemoveNode(nodeToRemove);
+        //         nodeGraph.RemoveNode(nodeToRemove);
+        //         roomsRemoved++;
+        //     }
+        //     if (nodeGraph.KeyCount() == 1) break;
+        // }
+        
+        // LinkedList<RectRoom> toRemoveList = new();
+        // RectRoom[] keyList = nodeGraph.Keys();
+        // foreach (RectRoom room in keyList)
+        // {
+        //     if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
+            
+        //     int realEdgeCount = nodeGraph.EdgeCount(room);
+        //     if (realEdgeCount == 1)
+        //     {
+        //         toRemoveList.AddFirst(room);
+        //         continue;
+        //     }
+            
+        //     foreach (RectRoom edge in nodeGraph.Edges(room))
+        //     {
+        //         if (toRemoveList.Contains(edge)) realEdgeCount--;
+        //         if (realEdgeCount == 1)
+        //         {
+        //             toRemoveList.AddFirst(room);
+        //             break;
+        //         }
+        //     }
+        // }
+        
+        // while (roomsRemoved < amountToRemove)
+        // {
+        //     if (nodeGraph.KeyCount() == 1) break;
+        //     if (toRemoveList.Count == 0) break;
+            
+        //     RectRoom node = toRemoveList.ElementAt(random.Next(toRemoveList.Count));
+        //     nodeGraph.RemoveNode(node);
+        //     toRemoveList.Remove(node);
+        //     roomsRemoved++;
+        // }
+    }
+    
+    #endregion
+    #region Door Placement
+    
+    async Awaitable PlaceDoors()
+    {
+        RectRoom[] keyList = nodeGraph.Keys();
+        foreach (RectRoom key in keyList)
+        {
+            List<RectRoom> connectionsList = new(nodeGraph.Edges(key));
+            
+            for (int i = 0; i < connectionsList.Count; i++)
+            {
+                if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
+                
+                RectRoom connectedRoom = connectionsList[i];
+                
+                if (key.doors.Any(connectedRoom.doors.Contains)) continue;
+                
+                RectInt overLap = AlgorithmsUtils.Intersect(key.roomData, connectedRoom.roomData);
+                
+                RectDoor newDoor;
+                int xPos;
+                int yPos;
+                
+                if (overLap.width > overLap.height)
+                {
+                    xPos = random.Next(
+                        Math.Max(key.roomData.xMin, connectedRoom.roomData.xMin) + (wallThickness * 2), 
+                        Math.Min(key.roomData.xMax, connectedRoom.roomData.xMax) - (wallThickness * 2) - doorSize + 1
+                    );
+                    
+                    if (key.roomData.y < connectedRoom.roomData.y) yPos = key.roomData.yMax - doorSize;
+                    else yPos = key.roomData.yMin;
+                }
+                else
+                {
+                    yPos = random.Next(
+                        Math.Max(key.roomData.yMin, connectedRoom.roomData.yMin) + (wallThickness * 2),
+                        Math.Min(key.roomData.yMax, connectedRoom.roomData.yMax) - (wallThickness * 2) - doorSize + 1
+                    );
+                    
+                    if (key.roomData.x < connectedRoom.roomData.x) xPos = key.roomData.xMax - doorSize;
+                    else xPos = key.roomData.xMin;
+                }
+                
+                newDoor = new(new(xPos, yPos, doorSize, doorSize));
+                
+                key.doors.Add(newDoor);
+                connectedRoom.doors.Add(newDoor);
+                
+                doorsGenerated++;
+            }
         }
     }
     
@@ -382,7 +520,7 @@ public class DungeonGenerator : MonoBehaviour
         StartCoroutine(RemoveRooms());
         removeWatch.Stop();
         Debug.Log("Time to remove rooms: " + removeWatch.Elapsed.TotalMilliseconds);
-        MakeSpanningTree();
+        //MakeSpanningTree();
         
         perDungeonWatch.Stop();
         
@@ -403,7 +541,6 @@ public class DungeonGenerator : MonoBehaviour
             totalRoomsRemovedList.Add(removedRooms);
             totalRoomsFinalDungeonList.Add(splitRooms.Count);
             DungeonGenerationTimesList.Add(Math.Round(perDungeonWatch.Elapsed.TotalMilliseconds, 3));
-            doorGenerator.StartGenerator(splitRooms, visualDelay, wallThickness, doorSize, seed, false, nodeGraph);
             yield return new WaitUntil(() => doneGeneratingDoors);
             
             StartCoroutine(GenerateDungeon());
@@ -424,35 +561,6 @@ public class DungeonGenerator : MonoBehaviour
             Debug.Log("Average rooms final: " + totalRoomsFinalDungeonList.Average(), this);
             Debug.Log("Amount of dungeons generated: " + dungeonsGeneratedCount, this);
         }
-        
-        doorGenerator.StartGenerator(splitRooms, visualDelay, wallThickness, doorSize, seed, true, nodeGraph);
-    }
-    
-    void MakeSpanningTree()
-    {
-        // Graph<RectRoom> newGraph = new();
-        // Queue<RectRoom> toDo = new();
-        // RectRoom startNode = splitRooms[splitRooms.Count/2];
-        
-        // toDo.Enqueue(startNode);
-        
-        // while (toDo.Count > 0)
-        // {
-        //     foreach(RectRoom edge in nodeGraph.GetNeighbors(toDo.Peek()))
-        //     {
-        //         if (newGraph.HasKey(edge)) continue;
-                
-        //         newGraph.AddNode(edge);
-        //         newGraph.AddEdge(toDo.Dequeue(), edge);
-        //         toDo.Enqueue(edge);
-        //     }
-        // }
-        
-        // nodeGraph = newGraph;
-        //nodeGraph = nodeGraph.BFS(splitRooms[splitRooms.Count/2]);
-        LinkedList<RectRoom> splitRooms = new();
-        //nodeGraph = nodeGraph.BFS(splitRooms.First.Value);
-        nodeGraph.ConvertToSpanningTree();
     }
     
     

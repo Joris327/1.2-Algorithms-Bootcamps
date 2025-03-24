@@ -59,7 +59,7 @@ public class DoorGenerator : MonoBehaviour
         
         foreach (RectRoom room in roomsList)
         {
-            List<RectRoom> connectionsList = new(nodeGraph.Neighbors(room));
+            List<RectRoom> connectionsList = new(nodeGraph.Edges(room));
             
             //foreach (RectRoom connectedRoom in nodeGraph.GetNeighbors(room))
             for (int i = 0; i < connectionsList.Count; i++)

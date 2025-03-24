@@ -458,14 +458,14 @@ MonoBehaviour:
   startSeed: 0
   dungeonsToGenerate: 1
   visualDelay: 0
-  worldWidth: 100
-  worldHeight: 100
+  worldWidth: 1000
+  worldHeight: 1000
   minRoomSize: 10
   maxRoomSize: 20
   roomsLimit: 100000
   chanceToSplit: 75
   guaranteedSplits: 4
-  roomRemovalPercentage: 54.3
+  roomRemovalPercentage: 10
   wallThickness: 1
   debugWallHeight: 0
 --- !u!114 &2033840195
