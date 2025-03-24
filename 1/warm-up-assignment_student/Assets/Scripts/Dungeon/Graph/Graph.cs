@@ -128,7 +128,7 @@ public class Graph<T>
     
     public Dictionary<T, List<T>> GetGraph()
     {
-        return adjacencyList;
+        return new(adjacencyList);
     }
     
     public void ConvertToSpanningTree()
