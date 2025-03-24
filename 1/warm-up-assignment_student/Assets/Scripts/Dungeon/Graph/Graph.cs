@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Graph<T>
 {
-    readonly Dictionary<T, List<T>> adjacencyList = new();
+    Dictionary<T, List<T>> adjacencyList = new();
     
     public void Clear() 
     { 
@@ -131,27 +131,46 @@ public class Graph<T>
         return adjacencyList;
     }
     
-    // public void ConvertToSpanningTree()
-    // {
-    //     foreach (var item in adjacencyList)
-    //     {
-    //         //if (item.Value.Count < 3) continue;
-    //         for (int i = item.Value.Count-1; i > 2; i--)
-    //         {
-    //             GetNeighbors(item.Value[i]).Remove(item.Key);
-    //             item.Value.Remove(item.Key);
-    //         }
-    //     }
-    // }
+    public void ConvertToSpanningTree()
+    {
+        T startNode = adjacencyList.Keys.First();
+        
+        Stack<T> toDo = new();
+        toDo.Push(startNode);
+        
+        Dictionary<T, List<T>> discovered = new()
+        {
+            { startNode, new() }
+        };
+        
+        while (toDo.Count > 0)
+        {
+            T node = toDo.Pop();
+            
+            foreach (T connectedNode in adjacencyList[node])
+            {
+                if (discovered.ContainsKey(connectedNode)) continue;
+                
+                toDo.Push(connectedNode);
+                discovered.Add(connectedNode, new());
+                discovered[node].Add(connectedNode);
+                discovered[connectedNode].Add(node);
+            }
+        }
+        
+        adjacencyList = discovered;
+    }
     
     // Breadth-First Search (BFS)
-    public Graph<T> BFS(T startNode)
+    public int BFS(T startNode)
     {
         Queue<T> toDo = new();
         toDo.Enqueue(startNode);
         
-        Graph<T> discovered = new();
-        discovered.AddNode(startNode);
+        List<T> discovered = new()
+        {
+            startNode
+        };
         
         while (toDo.Count > 0)
         {
@@ -159,15 +178,15 @@ public class Graph<T>
             
             foreach (T connectedNode in adjacencyList[node])
             {
-                if (discovered.HasKey(connectedNode)) continue;
+                if (discovered.Contains(connectedNode)) continue;
                 
                 toDo.Enqueue(connectedNode);
-                discovered.AddNode(connectedNode);
-                discovered.AddEdge(node, connectedNode);
+                discovered.Add(connectedNode);
+                //discovered.AddEdge(node, connectedNode);
             }
         }
         
-        return discovered;
+        return discovered.Count;
     }
 
     // Depth-First Search (DFS)
@@ -191,6 +210,7 @@ public class Graph<T>
                 
                 toDo.Push(connectedNode);
                 discovered.Add(connectedNode);
+                //discovered.AddEdge(node, connectedNode);
             }
         }
         

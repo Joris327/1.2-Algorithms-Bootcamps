@@ -456,7 +456,7 @@ MonoBehaviour:
   doneGeneratingDoors: 1
   seed: 0
   startSeed: 0
-  amountToGenerate: 1
+  dungeonsToGenerate: 1
   visualDelay: 0
   worldWidth: 100
   worldHeight: 100
@@ -465,6 +465,7 @@ MonoBehaviour:
   roomsLimit: 100000
   chanceToSplit: 75
   guaranteedSplits: 4
+  roomRemovalPercentage: 54.3
   wallThickness: 1
   debugWallHeight: 0
 --- !u!114 &2033840195

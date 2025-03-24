@@ -141,7 +141,9 @@ public class DungeonGenerator : MonoBehaviour
         yield return GenerateRooms();
         roomGenerationWatch.Stop();
         
-        //nodeGraph.ConvertToSpanningTree();
+        System.Diagnostics.Stopwatch spanningTreeWatch = System.Diagnostics.Stopwatch.StartNew();
+        nodeGraph.ConvertToSpanningTree();
+        spanningTreeWatch.Stop();
         
         System.Diagnostics.Stopwatch roomRemovalWatch = System.Diagnostics.Stopwatch.StartNew();
         yield return RemoveRooms();
@@ -155,6 +157,7 @@ public class DungeonGenerator : MonoBehaviour
         Debug.Log("Room generarion time: " + Math.Round(roomGenerationWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("    Rooms generated: " + roomsGenerated);
         Debug.Log("    Rooms Split: " + roomsSplit);
+        Debug.Log("Convert to spanning tree time: " + Math.Round(spanningTreeWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("Room removal time: " + Math.Round(roomRemovalWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("    Rooms Removed: " + roomsRemoved);
         
@@ -285,20 +288,20 @@ public class DungeonGenerator : MonoBehaviour
     {
         roomsRemoved = 0;
         
-        Graph<RectRoom> spanningTree = nodeGraph.BFS(nodeGraph.ElementAt(0));
-        
         int amountToRemove = (int)(nodeGraph.GetNodeCount() * (roomRemovalPercentage / 100));
         
         while (roomsRemoved < amountToRemove)
         {
-            for (int i = 0; i < spanningTree.GetNodeCount(); i++)
+            for (int i = 0; i < nodeGraph.GetNodeCount(); i++)
             {
                 if (visualDelay > 0) yield return new WaitForSeconds(visualDelay);
-                RectRoom nodeToRemove = spanningTree.ElementAt(i);
+                if (nodeGraph.GetNodeCount() == 1) break;
                 
-                if (spanningTree.GetNeighbors(nodeToRemove).Count > 1) continue;
+                RectRoom nodeToRemove = nodeGraph.ElementAt(i);
                 
-                spanningTree.RemoveNode(nodeToRemove);
+                if (nodeGraph.GetNeighbors(nodeToRemove).Count > 1) continue;
+                
+                //spanningTree.RemoveNode(nodeToRemove);
                 nodeGraph.RemoveNode(nodeToRemove);
                 roomsRemoved++;
             }
@@ -447,7 +450,8 @@ public class DungeonGenerator : MonoBehaviour
         // nodeGraph = newGraph;
         //nodeGraph = nodeGraph.BFS(splitRooms[splitRooms.Count/2]);
         LinkedList<RectRoom> splitRooms = new();
-        nodeGraph = nodeGraph.BFS(splitRooms.First.Value);
+        //nodeGraph = nodeGraph.BFS(splitRooms.First.Value);
+        nodeGraph.ConvertToSpanningTree();
     }
     
     
