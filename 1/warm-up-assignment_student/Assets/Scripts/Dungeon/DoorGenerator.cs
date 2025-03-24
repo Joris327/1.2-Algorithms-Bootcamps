@@ -9,7 +9,7 @@ public class DoorGenerator : MonoBehaviour
 {
     //input
     DungeonGenerator dungeonGenerator;
-    List<RectRoom> roomsList = new();
+    LinkedList<RectRoom> roomsList = new();
     Graph<RectRoom> nodeGraph;
     System.Random random = new();
     int seed = 0;
@@ -24,7 +24,7 @@ public class DoorGenerator : MonoBehaviour
     List<int> doorCountsList = new();
     int doorsCount = 0;
 
-    public void StartGenerator(List<RectRoom> pRoomsList, float pVisualDelay, int pWallThickness, int pSeed, bool pPrintStatistics,  Graph<RectRoom> pNodeGraph)
+    public void StartGenerator(LinkedList<RectRoom> pRoomsList, float pVisualDelay, int pWallThickness, int pDoorSize, int pSeed, bool pPrintStatistics,  Graph<RectRoom> pNodeGraph)
     {
         ClearGenerator();
         
@@ -33,7 +33,7 @@ public class DoorGenerator : MonoBehaviour
         roomsList = pRoomsList;
         visualDelay = pVisualDelay;
         wallThickness = pWallThickness;
-        doorSize = wallThickness * 2;
+        doorSize = pDoorSize;
         seed = pSeed;
         random = new(seed);
         printStatistics = pPrintStatistics;

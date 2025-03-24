@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class Graph<T>
@@ -98,10 +99,17 @@ public class Graph<T>
         return adjacencyList[node];
     }
     
+    public int ConnectionCount(T node)
+    {
+        return adjacencyList[node].Count;
+    }
+    
     public int GetNodeCount()
     {
         return adjacencyList.Count;
     }
+    
+    public T ElementAt(int index) => adjacencyList.ElementAt(index).Key;
     
     public void PrintGraph()
     {
