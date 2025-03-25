@@ -458,8 +458,8 @@ MonoBehaviour:
   startSeed: 0
   dungeonsToGenerate: 1
   visualDelay: 0
-  worldWidth: 1000
-  worldHeight: 1000
+  worldWidth: 100
+  worldHeight: 100
   minRoomSize: 10
   maxRoomSize: 20
   roomsLimit: 100000

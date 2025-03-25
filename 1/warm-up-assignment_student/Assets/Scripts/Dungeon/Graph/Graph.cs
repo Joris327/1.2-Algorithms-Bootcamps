@@ -104,6 +104,11 @@ public class Graph<T>
         return adjacencyList[node].Count;
     }
     
+    public T First()
+    {
+        return adjacencyList.First().Key;
+    }
+    
     public int KeyCount()
     {
         return adjacencyList.Count;
