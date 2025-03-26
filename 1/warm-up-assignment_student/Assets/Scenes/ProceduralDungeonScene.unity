@@ -419,6 +419,7 @@ GameObject:
   - component: {fileID: 2033840193}
   - component: {fileID: 2033840194}
   - component: {fileID: 2033840195}
+  - component: {fileID: 2033840196}
   m_Layer: 0
   m_Name: Dungeon
   m_TagString: Untagged
@@ -454,13 +455,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   doneGeneratingDoors: 1
+  awaitableUtils: {fileID: 2033840196}
   seed: 0
   startSeed: 0
   dungeonsToGenerate: 1
   visualDelay: 0
-  worldWidth: 100
-  worldHeight: 100
-  minRoomSize: 10
+  worldWidth: 1000
+  worldHeight: 1000
+  minRoomSize: 20
   maxRoomSize: 20
   roomsLimit: 100000
   chanceToSplit: 75
@@ -480,6 +482,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e2a3ad034a360b24e8763ce8ca1c1182, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &2033840196
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2033840191}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bb800cf5ae203d40b99aed67d7b6e51, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  waitForKey: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
