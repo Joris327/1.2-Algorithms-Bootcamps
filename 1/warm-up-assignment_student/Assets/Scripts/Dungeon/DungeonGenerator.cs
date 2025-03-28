@@ -17,6 +17,7 @@ public class DungeonGenerator : MonoBehaviour
     int doorSize;
     
     Graph<RectRoom> nodeGraph = new();
+    Zone[,] zones;
     
     System.Random random = new();
     
@@ -32,6 +33,7 @@ public class DungeonGenerator : MonoBehaviour
     [Header("World")]
     [SerializeField, Min(0)] int worldWidth = 100;
     [SerializeField, Min(0)] int worldHeight = 100;
+    [SerializeField, Min(1)] Vector2Int zoneAmount = new(10, 10);
     
     [Header("Rooms")]
     [SerializeField] int minRoomSize = 10;
@@ -163,7 +165,7 @@ public class DungeonGenerator : MonoBehaviour
     void SetupGenerator()
     {
         nodeGraph.Clear();
-        
+        zones = new Zone[zoneAmount.x, zoneAmount.y];
         DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
         
         if (startSeed == 0) seed = random.Next(0, int.MaxValue);
@@ -222,6 +224,49 @@ public class DungeonGenerator : MonoBehaviour
                 break;
             }
         }
+        
+        int zoneWidth = worldWidth / zoneAmount.x;
+        int zoneheight = worldHeight / zoneAmount.y;
+        
+        if ((worldWidth + 0f / zoneAmount.x) % 1 > 0) zoneWidth++;
+        if ((worldHeight + 0f / zoneAmount.y) % 1 > 0) zoneheight++;
+        
+        for (int i = 0; i < zoneAmount.x; i++)
+        {
+            for (int j = 0; j < zoneAmount.y; j++)
+            {
+                Zone newZone = new(new(i * zoneWidth, j * zoneheight, zoneWidth, zoneheight));
+                zones[i, j] = newZone;
+            }
+        }
+        
+        RectRoom[] keys = nodeGraph.Keys();
+        foreach (RectRoom room in keys)
+        {
+            Vector2Int topLeft = new(room.roomData.xMin / zoneWidth, room.roomData.yMax / zoneheight);
+            Vector2Int topRight = new(room.roomData.xMax / zoneWidth, room.roomData.yMax / zoneheight);
+            Vector2Int bottomLeft = new(room.roomData.xMin / zoneWidth, room.roomData.yMin / zoneheight);
+            Vector2Int bottomRight = new(room.roomData.xMax / zoneWidth, room.roomData.yMin / zoneheight);
+            
+            if (topLeft.y < zones.GetLength(1)) zones[topLeft.x, topLeft.y].rooms.Add(room);
+            if (topRight.x != topLeft.x && topRight.x < zones.GetLength(0) && topRight.y < zones.GetLength(1)) zones[topRight.x, topRight.y].rooms.Add(room);
+            if (bottomLeft.y != topLeft.y) zones[bottomLeft.x, bottomLeft.y].rooms.Add(room);
+            if (bottomRight.x != bottomLeft.x && bottomRight.y != topRight.y && bottomRight.x < zones.GetLength(0)) zones[bottomRight.x, bottomRight.y].rooms.Add(room);
+        }
+        
+        foreach (Zone zone in zones)
+        {
+            for (int i = 0; i < zone.rooms.Count(); i++)
+            {
+                RectRoom roomA = zone.rooms[i];
+                for (int j = i + 1; j < zone.rooms.Count(); j++)
+                {
+                    RectRoom roomB = zone.rooms[j];
+                    RectInt overlap = AlgorithmsUtils.Intersect(roomA.roomData, roomB.roomData);
+                    if (OverlapsProperly(overlap)) nodeGraph.AddEdge(roomA, roomB);
+                }
+            }
+        }
     }
     
     void SplitRoom(RectRoom room, SplitAbility splitAbility, Queue<RectRoom> toDoQueue)
@@ -256,17 +301,17 @@ public class DungeonGenerator : MonoBehaviour
         nodeGraph.AddNode(newRoom1);
         nodeGraph.AddNode(newRoom2);
         
-        nodeGraph.AddEdge(newRoom1, newRoom2);
+        // nodeGraph.AddEdge(newRoom1, newRoom2);
         
-        foreach (RectRoom nearbyRoom in nodeGraph.Edges(room))
-        {
-            nodeGraph.Edges(nearbyRoom).Remove(room);
-            RectInt room1Intersect = AlgorithmsUtils.Intersect(newRoom1.roomData, nearbyRoom.roomData);
-            RectInt room2intersect = AlgorithmsUtils.Intersect(newRoom2.roomData, nearbyRoom.roomData);
+        // foreach (RectRoom nearbyRoom in nodeGraph.Edges(room))
+        // {
+        //     nodeGraph.Edges(nearbyRoom).Remove(room);
+        //     RectInt room1Intersect = AlgorithmsUtils.Intersect(newRoom1.roomData, nearbyRoom.roomData);
+        //     RectInt room2intersect = AlgorithmsUtils.Intersect(newRoom2.roomData, nearbyRoom.roomData);
             
-            if (OverlapsProperly(room1Intersect)) nodeGraph.AddEdge(newRoom1, nearbyRoom);
-            if (OverlapsProperly(room2intersect)) nodeGraph.AddEdge(newRoom2, nearbyRoom);
-        }
+        //     if (OverlapsProperly(room1Intersect)) nodeGraph.AddEdge(newRoom1, nearbyRoom);
+        //     if (OverlapsProperly(room2intersect)) nodeGraph.AddEdge(newRoom2, nearbyRoom);
+        // }
         
         nodeGraph.RemoveNode(room);
         
@@ -444,6 +489,12 @@ public class DungeonGenerator : MonoBehaviour
                 Vector3 doorCenter = new (d.doorData.center.x, 0, d.doorData.center.y);
                 Vector3 roomCenter = new (room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
                 Debug.DrawLine(doorCenter, roomCenter);
+            }
+            
+            //zone graph
+            foreach (Zone z in zones)
+            {
+                AlgorithmsUtils.DebugRectInt(z.data, Color.green);
             }
         }
         
