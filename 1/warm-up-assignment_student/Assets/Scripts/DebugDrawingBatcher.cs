@@ -7,7 +7,9 @@ public class DebugDrawingBatcher : MonoBehaviour
     private static Dictionary<string, DebugDrawingBatcher> instances = new();
     private static DebugDrawingBatcher root = null;
     private static List<DebugDrawingBatcher> debugDrawingBatchers = new List<DebugDrawingBatcher>();
-
+    
+    public static float duration = 0;
+    
     public static DebugDrawingBatcher GetInstance(string pName = "default") {
         if (!instances.TryGetValue(pName, out var value))
         {
@@ -38,7 +40,7 @@ public class DebugDrawingBatcher : MonoBehaviour
         batchedCalls.Clear();
     }
 
-    private void OnDrawGizmos()
+    void OnDrawGizmos()
     {
         if (this != root) return;
 

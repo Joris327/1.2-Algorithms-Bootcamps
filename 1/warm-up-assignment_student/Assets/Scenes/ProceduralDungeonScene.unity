@@ -418,7 +418,6 @@ GameObject:
   m_Component:
   - component: {fileID: 2033840193}
   - component: {fileID: 2033840194}
-  - component: {fileID: 2033840195}
   - component: {fileID: 2033840196}
   m_Layer: 0
   m_Name: Dungeon
@@ -459,9 +458,9 @@ MonoBehaviour:
   seed: 0
   startSeed: 0
   dungeonsToGenerate: 1
-  visualDelay: 0
-  worldWidth: 1000
-  worldHeight: 1000
+  visualDelay: 0.1
+  worldWidth: 100
+  worldHeight: 100
   zoneAmount: {x: 7, y: 7}
   minRoomSize: 20
   maxRoomSize: 20
@@ -471,18 +470,11 @@ MonoBehaviour:
   roomRemovalPercentage: 10
   wallThickness: 1
   debugWallHeight: 0
---- !u!114 &2033840195
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2033840191}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e2a3ad034a360b24e8763ce8ca1c1182, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  drawRoomConnections: 0
+  drawDoorConnections: 1
+  drawZones: 1
+  drawWorldBorder: 1
+  duration: 1
 --- !u!114 &2033840196
 MonoBehaviour:
   m_ObjectHideFlags: 0

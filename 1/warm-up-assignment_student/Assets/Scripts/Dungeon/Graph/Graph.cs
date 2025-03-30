@@ -18,15 +18,12 @@ public class Graph<T>
     
     public void RemoveNode(T node)
     {
-        // if (adjacencyList.ContainsKey(node))
-        // {
-        //     adjacencyList.Remove(node);
-        // }
-
-        // foreach (var key in adjacencyList.Keys)
-        // {
-        //     adjacencyList[key].Remove(node);
-        // }
+        if (!adjacencyList.ContainsKey(node))
+        {
+            Debug.LogWarning("Graph: could not remove node as key was not present in dictionary.");
+            return;
+        }
+        
         foreach (var connectedNode in adjacencyList[node])
         {
             adjacencyList[connectedNode].Remove(node);

@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using NaughtyAttributes;
@@ -17,7 +16,7 @@ public class DungeonGenerator : MonoBehaviour
     int doorSize;
     
     Graph<RectRoom> nodeGraph = new();
-    Zone[,] zones;
+    Zone[,] zones = new Zone[0,0];
     
     System.Random random = new();
     
@@ -52,7 +51,14 @@ public class DungeonGenerator : MonoBehaviour
     
     [Header("Walls")]
     [SerializeField, Min(0)] int wallThickness = 1;
+    
+    [Header("Debug")]
     [SerializeField, Min(0)] float debugWallHeight = 5;
+    [SerializeField] bool drawRoomConnections = false;
+    [SerializeField] bool drawDoorConnections = true;
+    [SerializeField] bool drawZones = true;
+    [SerializeField] bool drawWorldBorder = true;
+    [SerializeField, Min(0)] float duration = 0;
     
     //statistics
     List<int> totalGeneratedRoomsList = new();
@@ -63,8 +69,11 @@ public class DungeonGenerator : MonoBehaviour
     
     int roomsGenerated = 0;
     int roomsSplit = 0;
+    int roomsBeforeRemoval = 0;
     int roomsRemoved = 0;
     int doorsGenerated = 0;
+    
+    //Awaitable drawing = null;
     
     #endregion
     #region Buttons
@@ -96,17 +105,28 @@ public class DungeonGenerator : MonoBehaviour
     #endregion
     #region Generator
     
-    void StartGenerator()
+    async void StartGenerator()
     {
         if (Application.isEditor && !Application.isPlaying) return;
         if (dungeonsToGenerate < 1) return;
         
+        //drawing?.Cancel();
+        //drawing = null;
+        
+        Debug.Log("Generating...");
+        
         ClearGenerator();
-        StartCoroutine(Generate());
+        if (visualDelay > 0) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
+        
+        await Generate();
+        
+        if (visualDelay == 0) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
+        //drawing = DrawDungeon();
     }
     
     void ClearGenerator()
     {
+        Debug.ClearDeveloperConsole();
         StopAllCoroutines();
         
         dungeonsGeneratedCount = 0;
@@ -119,12 +139,12 @@ public class DungeonGenerator : MonoBehaviour
         seed = startSeed;
         nodeGraph.Clear();
         
-        Debug.ClearDeveloperConsole();
         DebugDrawingBatcher.GetInstance().ClearCalls();
     }
     
     async Awaitable Generate()
     {
+        if (visualDelay == 0) await Awaitable.BackgroundThreadAsync();
         System.Diagnostics.Stopwatch totalWatch = System.Diagnostics.Stopwatch.StartNew();
         
         SetupGenerator();
@@ -133,8 +153,10 @@ public class DungeonGenerator : MonoBehaviour
         await GenerateRooms();
         roomGenerationWatch.Stop();
         
+        roomsBeforeRemoval = nodeGraph.KeyCount();
+        
         System.Diagnostics.Stopwatch spanningTreeWatch = System.Diagnostics.Stopwatch.StartNew();
-        ConvertToSpanningTree();
+        await ConvertToSpanningTree();
         spanningTreeWatch.Stop();
         
         System.Diagnostics.Stopwatch roomRemovalWatch = System.Diagnostics.Stopwatch.StartNew();
@@ -149,24 +171,31 @@ public class DungeonGenerator : MonoBehaviour
         dungeonsGeneratedCount++;
         
         Debug.Log("---");
-        Debug.Log("Total generation time: " + Math.Round(totalWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("Room generarion time: " + Math.Round(roomGenerationWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("    Rooms generated: " + roomsGenerated);
         Debug.Log("    Rooms Split: " + roomsSplit);
+        Debug.Log("    Rooms Total: " + roomsBeforeRemoval);
         Debug.Log("Convert to spanning tree time: " + Math.Round(spanningTreeWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("Room removal time: " + Math.Round(roomRemovalWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("    Rooms Removed: " + roomsRemoved);
+        Debug.Log("    Rooms left: " + nodeGraph.KeyCount());
         Debug.Log("Door generation time: " + Math.Round(doorGenerationWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("    Doors generated: " + doorsGenerated);
+        Debug.Log("Total generation time: " + Math.Round(totalWatch.Elapsed.TotalMilliseconds, 3));
         
-        if (dungeonsGeneratedCount < dungeonsToGenerate) StartCoroutine(Generate());
+        await Awaitable.MainThreadAsync();
+        
+        if (dungeonsGeneratedCount < dungeonsToGenerate)
+        {
+            await Generate();
+        }
     }
     
     void SetupGenerator()
     {
         nodeGraph.Clear();
         zones = new Zone[zoneAmount.x, zoneAmount.y];
-        DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
+        
         
         if (startSeed == 0) seed = random.Next(0, int.MaxValue);
         else seed = startSeed;
@@ -176,6 +205,9 @@ public class DungeonGenerator : MonoBehaviour
         roomsSplit = 0;
         roomsGenerated = 0;
         roomsRemoved = 0;
+        roomsBeforeRemoval = 0;
+        
+        DebugDrawingBatcher.duration = duration;
     }
     
     #endregion
@@ -244,14 +276,37 @@ public class DungeonGenerator : MonoBehaviour
         foreach (RectRoom room in keys)
         {
             Vector2Int topLeft = new(room.roomData.xMin / zoneWidth, room.roomData.yMax / zoneheight);
-            Vector2Int topRight = new(room.roomData.xMax / zoneWidth, room.roomData.yMax / zoneheight);
-            Vector2Int bottomLeft = new(room.roomData.xMin / zoneWidth, room.roomData.yMin / zoneheight);
-            Vector2Int bottomRight = new(room.roomData.xMax / zoneWidth, room.roomData.yMin / zoneheight);
+            Vector2Int topRight = new(room.roomData.xMax / zoneWidth, topLeft.y);
+            Vector2Int bottomLeft = new(topLeft.x, room.roomData.yMin / zoneheight);
+            Vector2Int bottomRight = new(topRight.x, bottomLeft.y);
             
-            if (topLeft.y < zones.GetLength(1)) zones[topLeft.x, topLeft.y].rooms.Add(room);
-            if (topRight.x != topLeft.x && topRight.x < zones.GetLength(0) && topRight.y < zones.GetLength(1)) zones[topRight.x, topRight.y].rooms.Add(room);
-            if (bottomLeft.y != topLeft.y) zones[bottomLeft.x, bottomLeft.y].rooms.Add(room);
-            if (bottomRight.x != bottomLeft.x && bottomRight.y != topRight.y && bottomRight.x < zones.GetLength(0)) zones[bottomRight.x, bottomRight.y].rooms.Add(room);
+            if (topLeft.x < zones.GetLength(0)
+             && topLeft.y < zones.GetLength(1))
+            {
+                zones[topLeft.x, topLeft.y].rooms.Add(room);
+            }
+            
+            if (topRight.x != topLeft.x
+             && topRight.x < zones.GetLength(0)
+             && topRight.y < zones.GetLength(1))
+            {
+                zones[topRight.x, topRight.y].rooms.Add(room);
+            }
+            
+            if (bottomLeft.y != topLeft.y
+             && bottomLeft.x < zones.GetLength(0)
+             && bottomLeft.y < zones.GetLength(1))
+            {
+                zones[bottomLeft.x, bottomLeft.y].rooms.Add(room);
+            }
+            
+            if (bottomRight.x != bottomLeft.x
+             && bottomRight.y != topRight.y
+             && bottomRight.x < zones.GetLength(0)
+             && bottomRight.y < zones.GetLength(1))
+            {
+                zones[bottomRight.x, bottomRight.y].rooms.Add(room);
+            }
         }
         
         foreach (Zone zone in zones)
@@ -281,7 +336,7 @@ public class DungeonGenerator : MonoBehaviour
         RectRoom newRoom1;
         RectRoom newRoom2 = new(new(room.roomData.x, room.roomData.y, room.roomData.width, room.roomData.height));
         
-        int adjustedMinRoomSize = minRoomSize + wallThickness * 3;
+        int adjustedMinRoomSize = minRoomSize + (wallThickness * 3);
         
         if (splitAbility == SplitAbility.vertically)
         {
@@ -326,7 +381,7 @@ public class DungeonGenerator : MonoBehaviour
     
     #endregion
     #region Spanning Tree
-    void ConvertToSpanningTree()
+    async Awaitable ConvertToSpanningTree()
     {
         RectRoom[] keys = nodeGraph.Keys();
         RectRoom startNode = keys[0];
@@ -346,6 +401,12 @@ public class DungeonGenerator : MonoBehaviour
         
         while (toDo.Count > 0)
         {
+            if (drawRoomConnections)
+            {
+                if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
+                if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
+            }
+            
             RectRoom node = toDo.Pop();
             
             List<RectRoom> sortedEdges = nodeGraph.Edges(node).OrderBy(t => t.roomData.size.magnitude).ToList();
@@ -460,49 +521,75 @@ public class DungeonGenerator : MonoBehaviour
     #endregion
     #region Helper Methods
     
+    //async Awaitable DrawDungeon()
     void DrawDungeon()
     {
+        //await Awaitable.BackgroundThreadAsync();
+        //int counter = 0;
         foreach (var room in nodeGraph.GetGraph())
         {
-            AlgorithmsUtils.DebugRectInt(room.Key.roomData, Color.yellow, 0, false, debugWallHeight);
+            AlgorithmsUtils.DebugRectInt(room.Key.roomData, Color.yellow, duration, false, debugWallHeight);
             RectInt innerWall = room.Key.roomData;
             innerWall.x += 2;
             innerWall.y += 2;
             innerWall.width -= 4;
             innerWall.height -= 4;
-            AlgorithmsUtils.DebugRectInt(innerWall, Color.yellow, 0, false, debugWallHeight);
-            DebugExtension.DebugCircle(new(innerWall.center.x, 0, innerWall.center.y));
+            AlgorithmsUtils.DebugRectInt(innerWall, Color.yellow, duration, false, debugWallHeight);
+            DebugExtension.DebugCircle(new(innerWall.center.x, 0, innerWall.center.y), 1, duration);
             
-            //lines between rooms
-            // foreach (RectRoom r in room.Value)
-            // {
-            //     Vector3 rCenter = new (r.roomData.center.x, 0, r.roomData.center.y);
-            //     Vector3 roomCenter = new (room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
-            //     Debug.DrawLine(rCenter, roomCenter, Color.red);
-            // }
-            
-            //line between room and doors
-            foreach (RectDoor d in room.Key.doors)
+            if (drawRoomConnections)
             {
-                AlgorithmsUtils.DebugRectInt(d.doorData, Color.blue, 0, false, debugWallHeight);
-                
-                Vector3 doorCenter = new (d.doorData.center.x, 0, d.doorData.center.y);
-                Vector3 roomCenter = new (room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
-                Debug.DrawLine(doorCenter, roomCenter);
+                foreach (RectRoom r in room.Value)
+                {
+                    Vector3 rCenter = new (r.roomData.center.x, 0, r.roomData.center.y);
+                    Vector3 roomCenter = new (room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
+                    Debug.DrawLine(rCenter, roomCenter, Color.red, duration);
+                }
             }
             
-            //zone graph
+            if (drawDoorConnections)
+            {
+                foreach (RectDoor d in room.Key.doors)
+                {
+                    AlgorithmsUtils.DebugRectInt(d.doorData, Color.blue, duration, false, debugWallHeight);
+                    
+                    Vector3 doorCenter = new (d.doorData.center.x, 0, d.doorData.center.y);
+                    Vector3 roomCenter = new (room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
+                    Debug.DrawLine(doorCenter, roomCenter, Color.white, duration);
+                }
+            }
+            
+            // counter++;
+            // if (counter >= 100)
+            // {
+            //     counter = 0;
+            //     await Awaitable.NextFrameAsync();
+            // }
+        }
+        
+        if (drawZones)
+        {
             foreach (Zone z in zones)
             {
+                if (z == null) continue;
                 AlgorithmsUtils.DebugRectInt(z.data, Color.green);
             }
         }
         
-        DebugExtension.DebugLocalCube( //shows world border
-            transform,
-            new Vector3(worldWidth, 0, worldHeight),
-            new Vector3(worldWidth/2f, 0, worldHeight/2f)
-        );
+        if (drawWorldBorder)
+        {
+            // DebugExtension.DebugLocalCube(
+            //     transform,
+            //     new Vector3(worldWidth, 0, worldHeight),
+            //     new Vector3(worldWidth/2f, 0, worldHeight/2f)
+            // );
+            RectInt wordBorder = new(0, 0, worldWidth, worldHeight);
+            AlgorithmsUtils.DebugRectInt(wordBorder, Color.white, duration);
+        }
+        
+        //await Awaitable.MainThreadAsync();
+        //await Awaitable.NextFrameAsync();
+        //await DrawDungeon();
     }
     
     bool IsEven(int value) => value % 2 == 0;
