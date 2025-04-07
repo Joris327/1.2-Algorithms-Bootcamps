@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using NaughtyAttributes;
 using UnityEngine;
 
@@ -12,7 +13,6 @@ public class DungeonGenerator : MonoBehaviour
     enum SplitAbility { cannot, horizontally, vertically, bothSides }
     
     //private fields
-    [HideInInspector] public bool doneGeneratingDoors = false;
     int doorSize;
     
     Graph<RectRoom> nodeGraph = new();
@@ -39,6 +39,7 @@ public class DungeonGenerator : MonoBehaviour
     [SerializeField] int maxRoomSize = 20;
     [SerializeField, Min(0)] int roomsLimit = 1000;
     [SerializeField, Range(0, 100)] int chanceToSplit = 90;
+    [SerializeField] bool useZones = true;
     
     /// <summary>
     /// How many times to guarantee rooms split before applying a chance. Prevents dungeon-sized rooms.
@@ -58,7 +59,12 @@ public class DungeonGenerator : MonoBehaviour
     [SerializeField] bool drawDoorConnections = true;
     [SerializeField] bool drawZones = true;
     [SerializeField] bool drawWorldBorder = true;
+    [SerializeField] bool drawCircles = true;
     [SerializeField, Min(0)] float duration = 0;
+    
+    [Header("Visuals")]
+    [SerializeField] GameObject wallPrefab;
+    [SerializeField] GameObject floorPrefab;
     
     //statistics
     List<int> totalGeneratedRoomsList = new();
@@ -72,8 +78,6 @@ public class DungeonGenerator : MonoBehaviour
     int roomsBeforeRemoval = 0;
     int roomsRemoved = 0;
     int doorsGenerated = 0;
-    
-    //Awaitable drawing = null;
     
     #endregion
     #region Buttons
@@ -110,8 +114,6 @@ public class DungeonGenerator : MonoBehaviour
         if (Application.isEditor && !Application.isPlaying) return;
         if (dungeonsToGenerate < 1) return;
         
-        //drawing?.Cancel();
-        //drawing = null;
         
         Debug.Log("Generating...");
         
@@ -121,7 +123,6 @@ public class DungeonGenerator : MonoBehaviour
         await Generate();
         
         if (visualDelay == 0) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
-        //drawing = DrawDungeon();
     }
     
     void ClearGenerator()
@@ -142,7 +143,7 @@ public class DungeonGenerator : MonoBehaviour
         DebugDrawingBatcher.GetInstance().ClearCalls();
     }
     
-    async Awaitable Generate()
+    async Task Generate()
     {
         if (visualDelay == 0) await Awaitable.BackgroundThreadAsync();
         System.Diagnostics.Stopwatch totalWatch = System.Diagnostics.Stopwatch.StartNew();
@@ -152,6 +153,10 @@ public class DungeonGenerator : MonoBehaviour
         System.Diagnostics.Stopwatch roomGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
         await GenerateRooms();
         roomGenerationWatch.Stop();
+        
+        System.Diagnostics.Stopwatch zoneGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
+        if (useZones) await GenerateZones();
+        zoneGenerationWatch.Stop();
         
         roomsBeforeRemoval = nodeGraph.KeyCount();
         
@@ -175,6 +180,7 @@ public class DungeonGenerator : MonoBehaviour
         Debug.Log("    Rooms generated: " + roomsGenerated);
         Debug.Log("    Rooms Split: " + roomsSplit);
         Debug.Log("    Rooms Total: " + roomsBeforeRemoval);
+        Debug.Log("Zone generarion time: " + Math.Round(zoneGenerationWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("Convert to spanning tree time: " + Math.Round(spanningTreeWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("Room removal time: " + Math.Round(roomRemovalWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("    Rooms Removed: " + roomsRemoved);
@@ -212,7 +218,7 @@ public class DungeonGenerator : MonoBehaviour
     
     #endregion
     #region Room Splitting
-    async Awaitable GenerateRooms()
+    async Task GenerateRooms()
     {
         Queue<RectRoom> toDoQueue = new();
         RectRoom firstRoom = new(new(0, 0, worldWidth, worldHeight));
@@ -256,7 +262,70 @@ public class DungeonGenerator : MonoBehaviour
                 break;
             }
         }
+    }
+    
+    void SplitRoom(RectRoom room, SplitAbility splitAbility, Queue<RectRoom> toDoQueue)
+    {
+        if (splitAbility == SplitAbility.cannot)
+        {
+            Debug.LogWarning("Tried to split unsplittable room");
+            return;
+        }
+        if (splitAbility == SplitAbility.bothSides) splitAbility = (SplitAbility)random.Next(1, 3);
         
+        RectRoom newRoom1;
+        RectRoom newRoom2 = new(new(room.roomData.x, room.roomData.y, room.roomData.width, room.roomData.height));
+        
+        int adjustedMinRoomSize = minRoomSize + (wallThickness * 3);
+        
+        if (splitAbility == SplitAbility.vertically)
+        {
+            int splitPos = random.Next(adjustedMinRoomSize, room.roomData.width - adjustedMinRoomSize);
+            
+            newRoom1 = new(new(room.roomData.x + splitPos - wallThickness, room.roomData.y, room.roomData.width - splitPos + wallThickness, room.roomData.height));
+            newRoom2.roomData.width = splitPos + wallThickness;
+        }
+        else
+        {
+            int splitPos = random.Next(adjustedMinRoomSize, room.roomData.height - adjustedMinRoomSize);
+            
+            newRoom1 = new(new(room.roomData.x, room.roomData.y + splitPos - wallThickness, room.roomData.width, room.roomData.height - splitPos + wallThickness));
+            newRoom2.roomData.height = splitPos + wallThickness;
+        }
+        
+        nodeGraph.AddNode(newRoom1);
+        nodeGraph.AddNode(newRoom2);
+        
+        if (!useZones)
+        {
+            nodeGraph.AddEdge(newRoom1, newRoom2);
+        
+            foreach (RectRoom nearbyRoom in nodeGraph.Edges(room))
+            {
+                nodeGraph.Edges(nearbyRoom).Remove(room);
+                RectInt room1Intersect = AlgorithmsUtils.Intersect(newRoom1.roomData, nearbyRoom.roomData);
+                RectInt room2intersect = AlgorithmsUtils.Intersect(newRoom2.roomData, nearbyRoom.roomData);
+                
+                if (OverlapsProperly(room1Intersect)) nodeGraph.AddEdge(newRoom1, nearbyRoom);
+                if (OverlapsProperly(room2intersect)) nodeGraph.AddEdge(newRoom2, nearbyRoom);
+            }
+        }
+        
+        nodeGraph.RemoveNode(room);
+        
+        if (CanBeSplit(newRoom2)) toDoQueue.Enqueue(newRoom2);
+        else nodeGraph.AddNode(newRoom2);
+        
+        if (CanBeSplit(newRoom1)) toDoQueue.Enqueue(newRoom1);
+        else nodeGraph.AddNode(newRoom1);
+    }
+    
+    bool OverlapsProperly(RectInt overlap) => overlap.width >= (wallThickness * 4) + doorSize || overlap.height >= (wallThickness * 4) + doorSize;
+    
+    #endregion
+    #region Generating Zones
+    async Task GenerateZones()
+    {
         int zoneWidth = worldWidth / zoneAmount.x;
         int zoneheight = worldHeight / zoneAmount.y;
         
@@ -267,6 +336,8 @@ public class DungeonGenerator : MonoBehaviour
         {
             for (int j = 0; j < zoneAmount.y; j++)
             {
+                if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
+                if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
                 Zone newZone = new(new(i * zoneWidth, j * zoneheight, zoneWidth, zoneheight));
                 zones[i, j] = newZone;
             }
@@ -324,64 +395,9 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
     
-    void SplitRoom(RectRoom room, SplitAbility splitAbility, Queue<RectRoom> toDoQueue)
-    {
-        if (splitAbility == SplitAbility.cannot)
-        {
-            Debug.LogWarning("Tried to split unsplittable room");
-            return;
-        }
-        if (splitAbility == SplitAbility.bothSides) splitAbility = (SplitAbility)random.Next(1, 3);
-        
-        RectRoom newRoom1;
-        RectRoom newRoom2 = new(new(room.roomData.x, room.roomData.y, room.roomData.width, room.roomData.height));
-        
-        int adjustedMinRoomSize = minRoomSize + (wallThickness * 3);
-        
-        if (splitAbility == SplitAbility.vertically)
-        {
-            int splitPos = random.Next(adjustedMinRoomSize, room.roomData.width - adjustedMinRoomSize);
-            
-            newRoom1 = new(new(room.roomData.x + splitPos - wallThickness, room.roomData.y, room.roomData.width - splitPos + wallThickness, room.roomData.height));
-            newRoom2.roomData.width = splitPos + wallThickness;
-        }
-        else
-        {
-            int splitPos = random.Next(adjustedMinRoomSize, room.roomData.height - adjustedMinRoomSize);
-            
-            newRoom1 = new(new(room.roomData.x, room.roomData.y + splitPos - wallThickness, room.roomData.width, room.roomData.height - splitPos + wallThickness));
-            newRoom2.roomData.height = splitPos + wallThickness;
-        }
-        
-        nodeGraph.AddNode(newRoom1);
-        nodeGraph.AddNode(newRoom2);
-        
-        // nodeGraph.AddEdge(newRoom1, newRoom2);
-        
-        // foreach (RectRoom nearbyRoom in nodeGraph.Edges(room))
-        // {
-        //     nodeGraph.Edges(nearbyRoom).Remove(room);
-        //     RectInt room1Intersect = AlgorithmsUtils.Intersect(newRoom1.roomData, nearbyRoom.roomData);
-        //     RectInt room2intersect = AlgorithmsUtils.Intersect(newRoom2.roomData, nearbyRoom.roomData);
-            
-        //     if (OverlapsProperly(room1Intersect)) nodeGraph.AddEdge(newRoom1, nearbyRoom);
-        //     if (OverlapsProperly(room2intersect)) nodeGraph.AddEdge(newRoom2, nearbyRoom);
-        // }
-        
-        nodeGraph.RemoveNode(room);
-        
-        if (CanBeSplit(newRoom2)) toDoQueue.Enqueue(newRoom2);
-        else nodeGraph.AddNode(newRoom2);
-        
-        if (CanBeSplit(newRoom1)) toDoQueue.Enqueue(newRoom1);
-        else nodeGraph.AddNode(newRoom1);
-    }
-    
-    bool OverlapsProperly(RectInt overlap) => overlap.width >= (wallThickness * 4) + doorSize || overlap.height >= (wallThickness * 4) + doorSize;
-    
     #endregion
     #region Spanning Tree
-    async Awaitable ConvertToSpanningTree()
+    async Task ConvertToSpanningTree()
     {
         RectRoom[] keys = nodeGraph.Keys();
         RectRoom startNode = keys[0];
@@ -421,13 +437,15 @@ public class DungeonGenerator : MonoBehaviour
             }
         }
         
+        Debug.Log(nodeGraph.KeyCount() == discovered.KeyCount());
+        
         nodeGraph = discovered;
     }
     
     #endregion
     #region Room Removal
     
-    async Awaitable RemoveRooms()
+    async Task RemoveRooms()
     {
         if (roomRemovalPercentage <= 0) return;
         
@@ -465,7 +483,7 @@ public class DungeonGenerator : MonoBehaviour
     #endregion
     #region Door Placement
     
-    async Awaitable PlaceDoors()
+    async Task PlaceDoors()
     {
         RectRoom[] keyList = nodeGraph.Keys();
         foreach (RectRoom key in keyList)
@@ -528,14 +546,19 @@ public class DungeonGenerator : MonoBehaviour
         //int counter = 0;
         foreach (var room in nodeGraph.GetGraph())
         {
-            AlgorithmsUtils.DebugRectInt(room.Key.roomData, Color.yellow, duration, false, debugWallHeight);
+            if (room.Value.Count > 0) AlgorithmsUtils.DebugRectInt(room.Key.roomData, Color.yellow, duration, false, debugWallHeight);
+            else AlgorithmsUtils.DebugRectInt(room.Key.roomData, Color.red, duration, false, debugWallHeight);
+            
             RectInt innerWall = room.Key.roomData;
             innerWall.x += 2;
             innerWall.y += 2;
             innerWall.width -= 4;
             innerWall.height -= 4;
-            AlgorithmsUtils.DebugRectInt(innerWall, Color.yellow, duration, false, debugWallHeight);
-            DebugExtension.DebugCircle(new(innerWall.center.x, 0, innerWall.center.y), 1, duration);
+            
+            if (room.Value.Count > 0) AlgorithmsUtils.DebugRectInt(innerWall, Color.yellow, duration, false, debugWallHeight);
+            else AlgorithmsUtils.DebugRectInt(innerWall, Color.red, duration, false, debugWallHeight);
+            
+            if (drawCircles) DebugExtension.DebugCircle(new(innerWall.center.x, 0, innerWall.center.y), 1, duration);
             
             if (drawRoomConnections)
             {
@@ -614,5 +637,15 @@ public class DungeonGenerator : MonoBehaviour
         return SplitAbility.bothSides;
     }
     
+    #endregion
+    #region Create Visuals
+    async Task CreateVisuals()
+    {
+        if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
+        if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
+        
+        
+    }
+
     #endregion
 }

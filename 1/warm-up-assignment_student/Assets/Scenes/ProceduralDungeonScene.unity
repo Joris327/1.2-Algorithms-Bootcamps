@@ -453,12 +453,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 247ec0b139110b54db6e7e862d232000, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  doneGeneratingDoors: 1
   awaitableUtils: {fileID: 2033840196}
   seed: 0
   startSeed: 0
   dungeonsToGenerate: 1
-  visualDelay: 0.1
+  visualDelay: 0
   worldWidth: 200
   worldHeight: 200
   zoneAmount: {x: 2, y: 2}
@@ -466,6 +465,7 @@ MonoBehaviour:
   maxRoomSize: 20
   roomsLimit: 100000
   chanceToSplit: 75
+  useZones: 1
   guaranteedSplits: 4
   roomRemovalPercentage: 10
   wallThickness: 1
@@ -474,7 +474,10 @@ MonoBehaviour:
   drawDoorConnections: 1
   drawZones: 1
   drawWorldBorder: 1
+  drawCircles: 1
   duration: 0
+  wallPrefab: {fileID: 0}
+  floorPrefab: {fileID: 0}
 --- !u!114 &2033840196
 MonoBehaviour:
   m_ObjectHideFlags: 0
