@@ -54,6 +54,7 @@ public class DungeonGenerator : MonoBehaviour
     [SerializeField, Min(0)] int wallThickness = 1;
     
     [Header("Debug")]
+    [SerializeField] bool debugDraw = true;
     [SerializeField, Min(0)] float debugWallHeight = 5;
     [SerializeField] bool drawRoomConnections = false;
     [SerializeField] bool drawDoorConnections = true;
@@ -63,6 +64,7 @@ public class DungeonGenerator : MonoBehaviour
     [SerializeField, Min(0)] float duration = 0;
     
     [Header("Visuals")]
+    [SerializeField] bool createVisuals = true;
     [SerializeField] GameObject wallPrefab;
     [SerializeField] GameObject floorPrefab;
     
@@ -147,6 +149,7 @@ public class DungeonGenerator : MonoBehaviour
     {
         if (visualDelay == 0) await Awaitable.BackgroundThreadAsync();
         System.Diagnostics.Stopwatch totalWatch = System.Diagnostics.Stopwatch.StartNew();
+        System.Diagnostics.Stopwatch dataWatch = System.Diagnostics.Stopwatch.StartNew();
         
         SetupGenerator();
         
@@ -172,6 +175,13 @@ public class DungeonGenerator : MonoBehaviour
         await PlaceDoors();
         doorGenerationWatch.Stop();
         
+        dataWatch.Stop();
+        await Awaitable.MainThreadAsync();
+        
+        System.Diagnostics.Stopwatch visualsGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
+        await CreateVisuals();
+        visualsGenerationWatch.Stop();
+        
         totalWatch.Stop();
         dungeonsGeneratedCount++;
         
@@ -187,9 +197,9 @@ public class DungeonGenerator : MonoBehaviour
         Debug.Log("    Rooms left: " + nodeGraph.KeyCount());
         Debug.Log("Door generation time: " + Math.Round(doorGenerationWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("    Doors generated: " + doorsGenerated);
+        Debug.Log("Data generation time: " + Math.Round(dataWatch.Elapsed.TotalMilliseconds, 3));
+        Debug.Log("Visuals generation time: " + Math.Round(visualsGenerationWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("Total generation time: " + Math.Round(totalWatch.Elapsed.TotalMilliseconds, 3));
-        
-        await Awaitable.MainThreadAsync();
         
         if (dungeonsGeneratedCount < dungeonsToGenerate)
         {
@@ -542,6 +552,7 @@ public class DungeonGenerator : MonoBehaviour
     //async Awaitable DrawDungeon()
     void DrawDungeon()
     {
+        if (!debugDraw) return;
         //await Awaitable.BackgroundThreadAsync();
         //int counter = 0;
         foreach (var room in nodeGraph.GetGraph())
@@ -641,10 +652,18 @@ public class DungeonGenerator : MonoBehaviour
     #region Create Visuals
     async Task CreateVisuals()
     {
+        if (!createVisuals) return;
+        
         if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
         if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
         
-        
+        RectRoom[] keys = nodeGraph.Keys();
+        foreach (RectRoom room in keys)
+        {
+            Vector3 floorPos = new(room.roomData.center.x, 0, room.roomData.center.y);
+            GameObject floor = Instantiate(floorPrefab, floorPos, floorPrefab.transform.rotation);
+            floor.transform.localScale = new(room.roomData.width, room.roomData.height, 1);
+        }
     }
 
     #endregion

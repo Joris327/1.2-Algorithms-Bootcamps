@@ -469,6 +469,7 @@ MonoBehaviour:
   guaranteedSplits: 4
   roomRemovalPercentage: 10
   wallThickness: 1
+  debugDraw: 1
   debugWallHeight: 0
   drawRoomConnections: 0
   drawDoorConnections: 1
@@ -476,8 +477,9 @@ MonoBehaviour:
   drawWorldBorder: 1
   drawCircles: 1
   duration: 0
-  wallPrefab: {fileID: 0}
-  floorPrefab: {fileID: 0}
+  createVisuals: 1
+  wallPrefab: {fileID: 9075065626098617084, guid: f363a0dc37fecd243a9b17ac75ff1296, type: 3}
+  floorPrefab: {fileID: 8240098480757791931, guid: 79edd033ff3ef384699e163416979c3e, type: 3}
 --- !u!114 &2033840196
 MonoBehaviour:
   m_ObjectHideFlags: 0
