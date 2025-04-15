@@ -654,15 +654,43 @@ public class DungeonGenerator : MonoBehaviour
     {
         if (!createVisuals) return;
         
-        if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
-        if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
-        
+        GameObject visualsContainer = new();
+        byte[,] map = new byte[worldWidth, worldHeight];
+        //Debug.Log(map[0,0]);
         RectRoom[] keys = nodeGraph.Keys();
         foreach (RectRoom room in keys)
         {
+            if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
+            if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
+            
             Vector3 floorPos = new(room.roomData.center.x, 0, room.roomData.center.y);
-            GameObject floor = Instantiate(floorPrefab, floorPos, floorPrefab.transform.rotation);
+            GameObject floor = Instantiate(floorPrefab, floorPos, floorPrefab.transform.rotation, visualsContainer.transform);
             floor.transform.localScale = new(room.roomData.width, room.roomData.height, 1);
+            
+            foreach (Vector2Int pos in room.roomData.allPositionsWithin)
+            {
+                if (pos.x == room.roomData.xMin
+                 || pos.x == room.roomData.xMin + 1
+                 || pos.x == room.roomData.xMax - 1
+                 || pos.x == room.roomData.xMax - 2
+                 || pos.y == room.roomData.yMin
+                 || pos.y == room.roomData.yMin + 1
+                 || pos.y == room.roomData.yMax - 1
+                 || pos.y == room.roomData.yMax - 2)
+                {
+                    map[pos.x, pos.y] = 1;
+                }
+            }
+        }
+        
+        //Debug.Log(map[0,0]);
+        for (int i = 0; i < worldWidth; i++)
+        {
+            for (int j = 0; j < worldHeight; j++)
+            {
+                byte pos = map[i, j];
+                if (pos == 1) Instantiate(wallPrefab, new Vector3(i + 0.5f, 0.5f, j + 0.5f), Quaternion.identity, visualsContainer.transform);
+            }
         }
     }
 
