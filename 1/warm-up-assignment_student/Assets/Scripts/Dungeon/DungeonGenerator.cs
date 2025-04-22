@@ -13,12 +13,15 @@ public class DungeonGenerator : MonoBehaviour
     enum SplitAbility { cannot, horizontally, vertically, bothSides }
     
     //private fields
+    List<RectDoor> doors = new();
     int doorSize;
     
     Graph<RectRoom> nodeGraph = new();
     Zone[,] zones = new Zone[0,0];
     
     System.Random random = new();
+    
+    GameObject visualsContainer;
     
     [SerializeField] AwaitableUtils awaitableUtils;
     
@@ -85,9 +88,9 @@ public class DungeonGenerator : MonoBehaviour
     #region Buttons
     
     [Button("Generate")]
-    void GenerateButton()
+    async void GenerateButton()
     {
-        StartGenerator();
+        await StartGenerator();
     }
     
     [Button("Clear Dungeon")]
@@ -103,15 +106,15 @@ public class DungeonGenerator : MonoBehaviour
         doorSize = wallThickness * 2;
     }
     
-    void Start()
+    async void Start()
     {
-        StartGenerator();
+        await StartGenerator();
     }
     
     #endregion
     #region Generator
     
-    async void StartGenerator()
+    async Task StartGenerator()
     {
         if (Application.isEditor && !Application.isPlaying) return;
         if (dungeonsToGenerate < 1) return;
@@ -141,6 +144,9 @@ public class DungeonGenerator : MonoBehaviour
         
         seed = startSeed;
         nodeGraph.Clear();
+        doors.Clear();
+        
+        Destroy(visualsContainer);
         
         DebugDrawingBatcher.GetInstance().ClearCalls();
     }
@@ -203,7 +209,7 @@ public class DungeonGenerator : MonoBehaviour
         
         if (dungeonsGeneratedCount < dungeonsToGenerate)
         {
-            await Generate();
+            await StartGenerator();
         }
     }
     
@@ -537,9 +543,11 @@ public class DungeonGenerator : MonoBehaviour
                 }
                 
                 newDoor = new(new(xPos, yPos, doorSize, doorSize));
+                doors.Add(newDoor);
                 
-                key.doors.Add(newDoor);
-                connectedRoom.doors.Add(newDoor);
+                key.doors.Add(doors.Count-1);
+                connectedRoom.doors.Add(doors.Count-1);
+                
                 
                 doorsGenerated++;
             }
@@ -583,11 +591,12 @@ public class DungeonGenerator : MonoBehaviour
             
             if (drawDoorConnections)
             {
-                foreach (RectDoor d in room.Key.doors)
+                foreach (int d in room.Key.doors)
                 {
-                    AlgorithmsUtils.DebugRectInt(d.doorData, Color.blue, duration, false, debugWallHeight);
+                    RectDoor door = doors[d];
+                    AlgorithmsUtils.DebugRectInt(door.doorData, Color.blue, duration, false, debugWallHeight);
                     
-                    Vector3 doorCenter = new (d.doorData.center.x, 0, d.doorData.center.y);
+                    Vector3 doorCenter = new (door.doorData.center.x, 0, door.doorData.center.y);
                     Vector3 roomCenter = new (room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
                     Debug.DrawLine(doorCenter, roomCenter, Color.white, duration);
                 }
@@ -654,9 +663,9 @@ public class DungeonGenerator : MonoBehaviour
     {
         if (!createVisuals) return;
         
-        GameObject visualsContainer = new();
+        visualsContainer = new("Dungeon geometry");
         byte[,] map = new byte[worldWidth, worldHeight];
-        //Debug.Log(map[0,0]);
+        
         RectRoom[] keys = nodeGraph.Keys();
         foreach (RectRoom room in keys)
         {
@@ -667,23 +676,50 @@ public class DungeonGenerator : MonoBehaviour
             GameObject floor = Instantiate(floorPrefab, floorPos, floorPrefab.transform.rotation, visualsContainer.transform);
             floor.transform.localScale = new(room.roomData.width, room.roomData.height, 1);
             
-            foreach (Vector2Int pos in room.roomData.allPositionsWithin)
+            RectInt roomData = room.roomData;
+            for (int i = roomData.yMin; i < roomData.yMax-1; i++)
             {
-                if (pos.x == room.roomData.xMin
-                 || pos.x == room.roomData.xMin + 1
-                 || pos.x == room.roomData.xMax - 1
-                 || pos.x == room.roomData.xMax - 2
-                 || pos.y == room.roomData.yMin
-                 || pos.y == room.roomData.yMin + 1
-                 || pos.y == room.roomData.yMax - 1
-                 || pos.y == room.roomData.yMax - 2)
-                {
-                    map[pos.x, pos.y] = 1;
-                }
+                map[roomData.xMax-1, i] = 1;
+                map[roomData.xMax-2, i] = 1;
+                map[roomData.xMin  , i] = 1;
+                map[roomData.xMin+1, i] = 1;
             }
+            for (int i = roomData.xMin; i < roomData.xMax-1; i++)
+            {
+                map[i, roomData.yMax-1] = 1;
+                map[i, roomData.yMax-2] = 1;
+                map[i, roomData.yMin  ] = 1;
+                map[i, roomData.yMin+1] = 1;
+            }
+            // foreach (Vector2Int pos in room.roomData.allPositionsWithin)
+            // {
+            //     if (pos.x == room.roomData.xMin
+            //      || pos.x == room.roomData.xMin + 1
+            //      || pos.x == room.roomData.xMax - 1
+            //      || pos.x == room.roomData.xMax - 2
+            //      || pos.y == room.roomData.yMin
+            //      || pos.y == room.roomData.yMin + 1
+            //      || pos.y == room.roomData.yMax - 1
+            //      || pos.y == room.roomData.yMax - 2)
+            //     {
+            //         map[pos.x, pos.y] = 1;
+            //     }
+            // }
         }
         
-        //Debug.Log(map[0,0]);
+        foreach (RectDoor door in doors)
+        {
+            //Vector2Int doorPos = door.doorData.position;
+            foreach (Vector2Int doorPos in door.doorData.allPositionsWithin)
+            {
+                map[doorPos.x, doorPos.y] = 2;
+            }
+            // map[doorPos.x  , doorPos.y  ] = 2;
+            // map[doorPos.x+1, doorPos.y  ] = 2;
+            // map[doorPos.x  , doorPos.y+1] = 2;
+            // map[doorPos.x+1, doorPos.y+1] = 2;
+        }
+        
         for (int i = 0; i < worldWidth; i++)
         {
             for (int j = 0; j < worldHeight; j++)

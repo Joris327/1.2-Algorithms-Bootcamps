@@ -4,7 +4,7 @@ using UnityEngine;
 public class RectRoom
 {
     public RectInt roomData;
-    public List<RectDoor> doors = new();
+    public List<int> doors = new();
     
     public RectRoom(RectInt pData = new())
     {

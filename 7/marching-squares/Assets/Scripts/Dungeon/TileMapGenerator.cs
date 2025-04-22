@@ -89,6 +89,4 @@ public class TileMapGenerator : MonoBehaviour
     {
         Debug.Log(ToString(true));
     }
-    
-    
 }
