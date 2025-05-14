@@ -13,9 +13,10 @@ public class DungeonGenerator : MonoBehaviour
     
     //enums
     enum SplitAbility { cannot, horizontally, vertically, bothSides }
-    
+    enum VisualsMethod { simple, marchingSquares }
+
     //private fields
-    List<RectDoor> doors = new();
+    readonly List<RectDoor> doors = new();
     int doorSize;
     
     Graph<RectRoom> nodeGraph = new();
@@ -25,11 +26,17 @@ public class DungeonGenerator : MonoBehaviour
     
     GameObject visualsContainer;
     
-    [SerializeField] AwaitableUtils awaitableUtils;
+    //public fields
+    public Vector2Int WorldSize { get { return new(worldWidth, worldHeight); } }
+    public RectRoom[] GetRooms { get { return nodeGraph.Keys(); } }
+    public RectDoor[] GetDoors { get { return doors.ToArray(); } }
+    public int WallThickness { get { return wallThickness; } }
     
     //serialized fields
-    [Tooltip("The seed used to generate the dungeon. If 0, will generate new random seed for each dungeon. Else will use the same seed for every dungeon generated.")]
+    [SerializeField] AwaitableUtils awaitableUtils;
+    [Tooltip("Please use the \'Start Seed\' value below to set the seed. Don't modify this field directly.")]
     [SerializeField] int seed = 0;
+    [Tooltip("The seed used to generate the dungeon. If 0, will generate new random seed for each dungeon. Else will use the given seed for every dungeon generated.")]
     [SerializeField] int startSeed = 0;
     [SerializeField, Min(0)] int dungeonsToGenerate = 1;
     [SerializeField, Min(0)] float visualDelay = 0.5f;
@@ -65,13 +72,16 @@ public class DungeonGenerator : MonoBehaviour
     [SerializeField] bool drawDoorConnections = true;
     [SerializeField] bool drawZones = true;
     [SerializeField] bool drawWorldBorder = true;
-    [SerializeField] bool drawCircles = true;
+    [SerializeField] bool drawRoomCenters = true;
     [SerializeField, Min(0)] float duration = 0;
     
     [Header("Visuals")]
     [SerializeField] bool createVisuals = true;
-    [SerializeField] GameObject wallPrefab;
-    [SerializeField] GameObject floorPrefab;
+    [SerializeField] VisualsMethod visualsMethod = VisualsMethod.simple;
+    [SerializeField] VisualsGenerator visualsGenerator;
+    [SerializeField] GameObject simpleWallPrefab;
+    [SerializeField] GameObject simpleFloorPrefab;
+    
     
     //statistics
     List<int> totalGeneratedRoomsList = new();
@@ -103,10 +113,6 @@ public class DungeonGenerator : MonoBehaviour
     
     #endregion
     #region Awake/Start/Update
-    void Awake()
-    {
-        doorSize = wallThickness * 2;
-    }
     
     async void Start()
     {
@@ -125,11 +131,11 @@ public class DungeonGenerator : MonoBehaviour
         Debug.Log("Generating...");
         
         ClearGenerator();
-        if (visualDelay > 0) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
+        if (visualDelay > 0 || visualsGenerator.visualDelay > 0) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
         
         await Generate();
         
-        if (visualDelay == 0) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
+        if (visualDelay == 0 && visualsGenerator.visualDelay == 0) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
     }
     
     void ClearGenerator()
@@ -190,14 +196,20 @@ public class DungeonGenerator : MonoBehaviour
         doorGenerationWatch.Stop();
         
         dataWatch.Stop();
+        
         await Awaitable.MainThreadAsync();
         
         System.Diagnostics.Stopwatch visualsGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
-        await CreateVisuals();
+        if (createVisuals)
+        {
+            if (visualsMethod == VisualsMethod.simple) await CreateSimpleVisuals();
+            else await visualsGenerator.Generate();
+        }
         visualsGenerationWatch.Stop();
         
         totalWatch.Stop();
         dungeonsGeneratedCount++;
+        await Awaitable.MainThreadAsync();
         
         Debug.Log("---");
         Debug.Log("Room generarion time: " + Math.Round(roomGenerationWatch.Elapsed.TotalMilliseconds, 3));
@@ -229,11 +241,11 @@ public class DungeonGenerator : MonoBehaviour
         nodeGraph.Clear();
         zones = new Zone[zoneAmount.x, zoneAmount.y];
         
-        
         if (startSeed == 0) seed = random.Next(0, int.MaxValue);
         else seed = startSeed;
         
         random = new(seed);
+        doorSize = wallThickness * 2;
         
         roomsSplit = 0;
         roomsGenerated = 0;
@@ -580,15 +592,15 @@ public class DungeonGenerator : MonoBehaviour
             else AlgorithmsUtils.DebugRectInt(room.Key.roomData, Color.red, duration, false, debugWallHeight);
             
             RectInt innerWall = room.Key.roomData;
-            innerWall.x += 2;
-            innerWall.y += 2;
-            innerWall.width -= 4;
-            innerWall.height -= 4;
+            innerWall.x += wallThickness*2;
+            innerWall.y += wallThickness*2;
+            innerWall.width -= wallThickness*4;
+            innerWall.height -= wallThickness*4;
             
             if (room.Value.Count > 0) AlgorithmsUtils.DebugRectInt(innerWall, Color.yellow, duration, false, debugWallHeight);
             else AlgorithmsUtils.DebugRectInt(innerWall, Color.red, duration, false, debugWallHeight);
             
-            if (drawCircles) DebugExtension.DebugCircle(new(innerWall.center.x, 0, innerWall.center.y), 1, duration);
+            if (drawRoomCenters) DebugExtension.DebugCircle(new(innerWall.center.x, 0, innerWall.center.y), 1, duration);
             
             if (drawRoomConnections)
             {
@@ -626,7 +638,7 @@ public class DungeonGenerator : MonoBehaviour
             foreach (Zone z in zones)
             {
                 if (z == null) continue;
-                AlgorithmsUtils.DebugRectInt(z.data, Color.green);
+                AlgorithmsUtils.DebugRectInt(z.data, Color.green, 0, false, 0);
             }
         }
         
@@ -638,7 +650,7 @@ public class DungeonGenerator : MonoBehaviour
             //     new Vector3(worldWidth/2f, 0, worldHeight/2f)
             // );
             RectInt wordBorder = new(0, 0, worldWidth, worldHeight);
-            AlgorithmsUtils.DebugRectInt(wordBorder, Color.white, duration);
+            AlgorithmsUtils.DebugRectInt(wordBorder, Color.white, duration, false, 0);
         }
         
         //await Awaitable.MainThreadAsync();
@@ -670,10 +682,8 @@ public class DungeonGenerator : MonoBehaviour
     
     #endregion
     #region Create Visuals
-    async Task CreateVisuals()
+    async Task CreateSimpleVisuals()
     {
-        if (!createVisuals) return;
-        
         visualsContainer = new("Dungeon geometry");
         byte[,] map = new byte[worldWidth, worldHeight];
         
@@ -684,7 +694,7 @@ public class DungeonGenerator : MonoBehaviour
             if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
             
             Vector3 floorPos = new(room.roomData.center.x, 0, room.roomData.center.y);
-            GameObject floor = Instantiate(floorPrefab, floorPos, floorPrefab.transform.rotation, visualsContainer.transform);
+            GameObject floor = Instantiate(simpleFloorPrefab, floorPos, simpleFloorPrefab.transform.rotation, visualsContainer.transform);
             floor.transform.localScale = new(room.roomData.width, room.roomData.height, 1);
             
             RectInt roomData = room.roomData;
@@ -702,33 +712,14 @@ public class DungeonGenerator : MonoBehaviour
                 map[i, roomData.yMin  ] = 1;
                 map[i, roomData.yMin+1] = 1;
             }
-            // foreach (Vector2Int pos in room.roomData.allPositionsWithin)
-            // {
-            //     if (pos.x == room.roomData.xMin
-            //      || pos.x == room.roomData.xMin + 1
-            //      || pos.x == room.roomData.xMax - 1
-            //      || pos.x == room.roomData.xMax - 2
-            //      || pos.y == room.roomData.yMin
-            //      || pos.y == room.roomData.yMin + 1
-            //      || pos.y == room.roomData.yMax - 1
-            //      || pos.y == room.roomData.yMax - 2)
-            //     {
-            //         map[pos.x, pos.y] = 1;
-            //     }
-            // }
         }
         
         foreach (RectDoor door in doors)
         {
-            //Vector2Int doorPos = door.doorData.position;
             foreach (Vector2Int doorPos in door.doorData.allPositionsWithin)
             {
                 map[doorPos.x, doorPos.y] = 2;
             }
-            // map[doorPos.x  , doorPos.y  ] = 2;
-            // map[doorPos.x+1, doorPos.y  ] = 2;
-            // map[doorPos.x  , doorPos.y+1] = 2;
-            // map[doorPos.x+1, doorPos.y+1] = 2;
         }
         
         for (int i = 0; i < worldWidth; i++)
@@ -736,7 +727,7 @@ public class DungeonGenerator : MonoBehaviour
             for (int j = 0; j < worldHeight; j++)
             {
                 byte pos = map[i, j];
-                if (pos == 1) Instantiate(wallPrefab, new Vector3(i + 0.5f, 0.5f, j + 0.5f), Quaternion.identity, visualsContainer.transform);
+                if (pos == 1) Instantiate(simpleWallPrefab, new Vector3(i + 0.5f, 0.5f, j + 0.5f), Quaternion.identity, visualsContainer.transform);
             }
         }
     }

@@ -390,11 +390,11 @@ NavMeshAgent:
   m_Enabled: 1
   m_AgentTypeID: 0
   m_Radius: 0.5
-  m_Speed: 3.5
-  m_Acceleration: 8
+  m_Speed: 10
+  m_Acceleration: 15
   avoidancePriority: 50
-  m_AngularSpeed: 120
-  m_StoppingDistance: 0
+  m_AngularSpeed: 360
+  m_StoppingDistance: 0.1
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
   m_AutoRepath: 1
@@ -596,6 +596,7 @@ GameObject:
   - component: {fileID: 2033840193}
   - component: {fileID: 2033840194}
   - component: {fileID: 2033840196}
+  - component: {fileID: 2033840198}
   - component: {fileID: 2033840197}
   m_Layer: 0
   m_Name: Dungeon
@@ -633,31 +634,33 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   awaitableUtils: {fileID: 2033840196}
   seed: 0
-  startSeed: 0
+  startSeed: 1
   dungeonsToGenerate: 1
   visualDelay: 0
-  worldWidth: 200
-  worldHeight: 200
+  worldWidth: 30
+  worldHeight: 30
   zoneAmount: {x: 2, y: 2}
-  minRoomSize: 20
-  maxRoomSize: 20
+  minRoomSize: 5
+  maxRoomSize: 10
   roomsLimit: 100000
   chanceToSplit: 75
   useZones: 1
   guaranteedSplits: 4
   roomRemovalPercentage: 10
-  wallThickness: 1
+  wallThickness: 2
   debugDraw: 1
   debugWallHeight: 0
   drawRoomConnections: 0
   drawDoorConnections: 1
   drawZones: 1
   drawWorldBorder: 1
-  drawCircles: 1
+  drawRoomCenters: 1
   duration: 0
   createVisuals: 1
-  wallPrefab: {fileID: 9075065626098617084, guid: f363a0dc37fecd243a9b17ac75ff1296, type: 3}
-  floorPrefab: {fileID: 8240098480757791931, guid: 79edd033ff3ef384699e163416979c3e, type: 3}
+  visualsMethod: 1
+  visualsGenerator: {fileID: 2033840198}
+  simpleWallPrefab: {fileID: 9075065626098617084, guid: f363a0dc37fecd243a9b17ac75ff1296, type: 3}
+  simpleFloorPrefab: {fileID: 8240098480757791931, guid: 79edd033ff3ef384699e163416979c3e, type: 3}
 --- !u!114 &2033840196
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -703,6 +706,37 @@ MonoBehaviour:
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 0}
   m_BuildHeightMesh: 0
+--- !u!114 &2033840198
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2033840191}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dae18253bcbc0c34cae6016dcdca06ec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dungeonGenerator: {fileID: 2033840194}
+  visualDelay: 0
+  debugDraw: 1
+  wallPrefabs:
+  - {fileID: 2878497128050032797, guid: 76bb09cb4c27d8a4696214dce0326bdd, type: 3}
+  - {fileID: 5175553097967315673, guid: 1baa95304ce7d1c459443df8de1457e8, type: 3}
+  - {fileID: 3677567201816628487, guid: e33a7699cbf2ac441b511ab59f6078d8, type: 3}
+  - {fileID: 414930215037693129, guid: 931432e0665eb58469d2485b15077dc0, type: 3}
+  - {fileID: 7782362095540728620, guid: cf01063069e735648ab8a1c748d2da83, type: 3}
+  - {fileID: 3383416988541118824, guid: 1c1a5dedafe1904459427c483ba611d0, type: 3}
+  - {fileID: 3704261836636410164, guid: c6f83813070bea041a9a0e107ab51f59, type: 3}
+  - {fileID: 4854822919998787274, guid: ae8cbe638b9f7074dbc7244fb3c26600, type: 3}
+  - {fileID: 2600235747112749935, guid: a9b3b91ceb6f1134ca74cce01b6a78a8, type: 3}
+  - {fileID: 3419528550181042829, guid: bab40014c6bafe441b1a47834f863221, type: 3}
+  - {fileID: 1336608916475551646, guid: b691f74e537589c45b55947cb8bfa721, type: 3}
+  - {fileID: 5609736035190698148, guid: 272fb9cc01e08f247b43f7e6c38dfdfb, type: 3}
+  - {fileID: 6153966049455775798, guid: 2845a60bcd2f5514e93bad2c324f8d31, type: 3}
+  - {fileID: 1336608916475551646, guid: 988bdb5b8c8e5684f82e8aa72c31960a, type: 3}
+  - {fileID: 3801860624859617898, guid: ef501ae38d35df8469fa26679054f194, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
