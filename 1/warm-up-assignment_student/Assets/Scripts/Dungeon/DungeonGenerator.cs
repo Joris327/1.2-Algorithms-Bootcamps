@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NaughtyAttributes;
+using Unity.AI.Navigation;
 using UnityEngine;
 
+[RequireComponent(typeof(NavMeshSurface))]
 public class DungeonGenerator : MonoBehaviour
 {
     #region Variables
@@ -153,6 +155,12 @@ public class DungeonGenerator : MonoBehaviour
     
     async Task Generate()
     {
+        Camera.main.transform.position = new(
+            worldWidth/2,
+            worldHeight > worldWidth ? worldHeight : worldWidth,
+            worldHeight/2
+        );
+        
         if (visualDelay == 0) await Awaitable.BackgroundThreadAsync();
         System.Diagnostics.Stopwatch totalWatch = System.Diagnostics.Stopwatch.StartNew();
         System.Diagnostics.Stopwatch dataWatch = System.Diagnostics.Stopwatch.StartNew();
@@ -210,7 +218,10 @@ public class DungeonGenerator : MonoBehaviour
         if (dungeonsGeneratedCount < dungeonsToGenerate)
         {
             await StartGenerator();
+            return;
         }
+        
+        GetComponent<NavMeshSurface>().BuildNavMesh();
     }
     
     void SetupGenerator()

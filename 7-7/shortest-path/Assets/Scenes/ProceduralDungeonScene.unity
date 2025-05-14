@@ -520,7 +520,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   graphGenerator: {fileID: 0}
   path: []
-  algorithm: 0
+  algorithm: 2
 --- !u!114 &1869656467526122978 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2110683114568432357, guid: eb7a32fc8e45c49ab9b8453734316ef8, type: 3}

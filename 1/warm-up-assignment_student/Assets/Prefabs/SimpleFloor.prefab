@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 2291845561102274668}
   - component: {fileID: 170183274764808253}
   - component: {fileID: 763699711378311192}
-  - component: {fileID: 4438769661607375531}
+  - component: {fileID: -6371778867426860149}
   m_Layer: 0
   m_Name: SimpleFloor
   m_TagString: Untagged
@@ -87,7 +87,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &4438769661607375531
+--- !u!64 &-6371778867426860149
 MeshCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
