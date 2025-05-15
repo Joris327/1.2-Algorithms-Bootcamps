@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NaughtyAttributes;
 using Unity.AI.Navigation;
 using UnityEngine;
+using UnityEngine.AI;
 
 [RequireComponent(typeof(NavMeshSurface))]
 public class DungeonGenerator : MonoBehaviour
@@ -28,6 +29,7 @@ public class DungeonGenerator : MonoBehaviour
     
     //public fields
     public Vector2Int WorldSize { get { return new(worldWidth, worldHeight); } }
+    public RectRoom GetFirstRoom { get { return nodeGraph.First(); } }
     public RectRoom[] GetRooms { get { return nodeGraph.Keys(); } }
     public RectDoor[] GetDoors { get { return doors.ToArray(); } }
     public int WallThickness { get { return wallThickness; } }
@@ -40,6 +42,7 @@ public class DungeonGenerator : MonoBehaviour
     [SerializeField] int startSeed = 0;
     [SerializeField, Min(0)] int dungeonsToGenerate = 1;
     [SerializeField, Min(0)] float visualDelay = 0.5f;
+    [SerializeField] Player player;
     
     [Header("World")]
     [SerializeField, Min(0)] int worldWidth = 100;
@@ -199,13 +202,15 @@ public class DungeonGenerator : MonoBehaviour
         
         await Awaitable.MainThreadAsync();
         
-        System.Diagnostics.Stopwatch visualsGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
         if (createVisuals)
         {
             if (visualsMethod == VisualsMethod.simple) await CreateSimpleVisuals();
             else await visualsGenerator.Generate();
         }
-        visualsGenerationWatch.Stop();
+
+        Vector2 newPos = nodeGraph.First().roomData.center;
+        player.transform.position = new(newPos.x, 1, newPos.y);
+        player.GetComponent<NavMeshAgent>().enabled = true;
         
         totalWatch.Stop();
         dungeonsGeneratedCount++;
@@ -224,7 +229,6 @@ public class DungeonGenerator : MonoBehaviour
         Debug.Log("Door generation time: " + Math.Round(doorGenerationWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("    Doors generated: " + doorsGenerated);
         Debug.Log("Data generation time: " + Math.Round(dataWatch.Elapsed.TotalMilliseconds, 3));
-        Debug.Log("Visuals generation time: " + Math.Round(visualsGenerationWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("Total generation time: " + Math.Round(totalWatch.Elapsed.TotalMilliseconds, 3));
         
         if (dungeonsGeneratedCount < dungeonsToGenerate)
@@ -684,6 +688,8 @@ public class DungeonGenerator : MonoBehaviour
     #region Create Visuals
     async Task CreateSimpleVisuals()
     {
+        System.Diagnostics.Stopwatch visualsGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
+        
         visualsContainer = new("Dungeon geometry");
         byte[,] map = new byte[worldWidth, worldHeight];
         
@@ -730,6 +736,9 @@ public class DungeonGenerator : MonoBehaviour
                 if (pos == 1) Instantiate(simpleWallPrefab, new Vector3(i + 0.5f, 0.5f, j + 0.5f), Quaternion.identity, visualsContainer.transform);
             }
         }
+        
+        visualsGenerationWatch.Stop();
+        Debug.Log("Sufficient Visuals generation time: " + Math.Round(visualsGenerationWatch.Elapsed.TotalMilliseconds, 3));
     }
 
     #endregion

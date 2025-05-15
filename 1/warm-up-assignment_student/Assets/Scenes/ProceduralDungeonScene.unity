@@ -267,8 +267,8 @@ GameObject:
   - component: {fileID: 400353337}
   - component: {fileID: 400353336}
   - component: {fileID: 400353335}
-  - component: {fileID: 400353334}
   - component: {fileID: 400353333}
+  - component: {fileID: 400353339}
   - component: {fileID: 400353338}
   m_Layer: 0
   m_Name: Player
@@ -289,29 +289,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b88a1d30778b34f459d5ae81fd4dd3c8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!136 &400353334
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 400353332}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.5
-  m_Height: 2
-  m_Direction: 1
-  m_Center: {x: 0, y: 0, z: 0}
+  searchMode: 0
+  showGraph: 1
 --- !u!23 &400353335
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -387,13 +366,13 @@ NavMeshAgent:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 400353332}
-  m_Enabled: 1
+  m_Enabled: 0
   m_AgentTypeID: 0
   m_Radius: 0.5
   m_Speed: 10
-  m_Acceleration: 15
+  m_Acceleration: 20
   avoidancePriority: 50
-  m_AngularSpeed: 360
+  m_AngularSpeed: 720
   m_StoppingDistance: 0.1
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
@@ -402,6 +381,19 @@ NavMeshAgent:
   m_BaseOffset: 1
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
+--- !u!114 &400353339
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 400353332}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 35cdf7ce0a7b9f6449e36587213d43ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  speed: 10
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -637,8 +629,9 @@ MonoBehaviour:
   startSeed: 1
   dungeonsToGenerate: 1
   visualDelay: 0
-  worldWidth: 30
-  worldHeight: 30
+  player: {fileID: 400353333}
+  worldWidth: 50
+  worldHeight: 50
   zoneAmount: {x: 2, y: 2}
   minRoomSize: 5
   maxRoomSize: 10
@@ -647,7 +640,7 @@ MonoBehaviour:
   useZones: 1
   guaranteedSplits: 4
   roomRemovalPercentage: 10
-  wallThickness: 2
+  wallThickness: 1
   debugDraw: 1
   debugWallHeight: 0
   drawRoomConnections: 0
@@ -702,7 +695,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 0.1
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 0}
   m_BuildHeightMesh: 0
@@ -721,6 +714,8 @@ MonoBehaviour:
   dungeonGenerator: {fileID: 2033840194}
   visualDelay: 0
   debugDraw: 1
+  player: {fileID: 400353333}
+  floorTilePrefab: {fileID: 4786606637186289427, guid: ee2ec93b0f8db314d99c5c4ca581bc18, type: 3}
   wallPrefabs:
   - {fileID: 2878497128050032797, guid: 76bb09cb4c27d8a4696214dce0326bdd, type: 3}
   - {fileID: 5175553097967315673, guid: 1baa95304ce7d1c459443df8de1457e8, type: 3}

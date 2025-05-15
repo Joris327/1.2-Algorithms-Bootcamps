@@ -118,7 +118,6 @@ public class PathFinder : MonoBehaviour
         
         queue.Add(new KeyValuePair<Vector3, float>(start, 0));
         costs.Add(start, 0);
-        discovered.Add(start);
         
         while (queue.Count > 0)
         {
@@ -167,7 +166,6 @@ public class PathFinder : MonoBehaviour
         
         queue.Add(new KeyValuePair<Vector3, float>(start, 0));
         costs.Add(start, 0);
-        discovered.Add(start);
         
         while (queue.Count > 0)
         {
