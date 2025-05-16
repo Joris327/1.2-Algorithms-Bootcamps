@@ -208,8 +208,12 @@ public class DungeonGenerator : MonoBehaviour
             else await visualsGenerator.Generate();
         }
 
-        Vector2 newPos = nodeGraph.First().roomData.center;
-        player.transform.position = new(newPos.x, 1, newPos.y);
+        Vector2 roomCenter = nodeGraph.First().roomData.center;
+        Vector3 newPos = new(roomCenter.x, 1, roomCenter.y);
+        player.transform.position = newPos;
+        
+        NavMeshAgent agent = player.GetComponent<NavMeshAgent>();
+        agent.nextPosition = newPos;
         
         totalWatch.Stop();
         dungeonsGeneratedCount++;

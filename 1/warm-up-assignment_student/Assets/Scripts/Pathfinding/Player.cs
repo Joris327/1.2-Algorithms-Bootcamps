@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -113,6 +114,8 @@ public class Player : MonoBehaviour
 
     async Task FindPath()
     {
+        Debug.Log("---");
+        System.Diagnostics.Stopwatch pathFindWatch = System.Diagnostics.Stopwatch.StartNew();
         Vector3 start = FindClosestNode(transform.position);
         Vector3 end = FindClosestNode(clickPosition);
         
@@ -139,6 +142,9 @@ public class Player : MonoBehaviour
             if (node == end)
             {
                 ReconstructPath(path, end, start);
+                pathFindWatch.Stop();
+                Debug.Log("Nodes Searched: " + discovered.Count);
+                Debug.Log("Path find time: " + Math.Round(pathFindWatch.Elapsed.TotalMilliseconds, 3));
                 return;
             }
             
@@ -178,5 +184,6 @@ public class Player : MonoBehaviour
         
         path = returnList;
         path.Reverse();
+        Debug.Log("Path Length: " + path.Count);
     }
 }
