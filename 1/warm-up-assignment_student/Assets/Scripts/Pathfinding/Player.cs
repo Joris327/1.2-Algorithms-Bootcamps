@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -9,6 +10,8 @@ public class Player : MonoBehaviour
 {
     [SerializeField] SearchMode searchMode;
     [SerializeField] bool showGraph = true;
+    [SerializeField, Min(0)] float visualDelay = 0;
+    [SerializeField, Min(0)] float heuristicWeight = 1;
     
     enum SearchMode { Dijkstra, AStar }
     
@@ -17,6 +20,7 @@ public class Player : MonoBehaviour
     Graph<Vector3> graph = null;
     FollowPathController controller;
     HashSet<Vector3> discovered = new();
+    List<Vector3> path = new();
     
     void Awake()
     {
@@ -24,7 +28,7 @@ public class Player : MonoBehaviour
         if (!TryGetComponent(out controller)) Debug.LogError("Player: could not find FollowPathController component.", this);
     }
 
-    void Update()
+    async void Update()
     {
         // Get the mouse click position in world space 
         if (Input.GetMouseButtonDown(0))
@@ -37,10 +41,14 @@ public class Player : MonoBehaviour
 
                 clickPosition = clickWorldPosition;
                 
-                if (graph == null) SetDestination(clickPosition);
+                if (graph == null)
+                {
+                    agent.enabled = true;
+                    SetDestination(clickPosition);
+                }
                 else
                 {
-                    List<Vector3> path = FindPath();
+                    await FindPath();
                     controller.GoToDestination(path);
                 }
             }
@@ -65,6 +73,14 @@ public class Player : MonoBehaviour
             {
                 DebugExtension.DebugPoint(pos, 0.5f, 0, false);
             }
+            
+            if (path != null)
+            {
+                foreach (Vector3 node in path)
+                {
+                    DebugExtension.DebugPoint(node, Color.red, 0.5f, 0, false);
+                }
+            }
         }
     }
 
@@ -85,9 +101,9 @@ public class Player : MonoBehaviour
         
         foreach (Vector3 node in graph.GetNodes())
         {
-            if ((node - closestNode).magnitude < shortestDistance)
+            if ((input - node).magnitude < shortestDistance)
             {
-                shortestDistance = (node - closestNode).magnitude;
+                shortestDistance = (node - input).magnitude;
                 closestNode = node;
             }
         }
@@ -95,7 +111,7 @@ public class Player : MonoBehaviour
         return closestNode;
     }
 
-    List<Vector3> FindPath()
+    async Task FindPath()
     {
         Vector3 start = FindClosestNode(transform.position);
         Vector3 end = FindClosestNode(clickPosition);
@@ -114,7 +130,17 @@ public class Player : MonoBehaviour
             queue.RemoveAt(queue.Count-1);
             discovered.Add(node);
             
-            if (node == end) return ReconstructPath(path, end, start);
+            if (visualDelay > 0)
+            {
+                AlgorithmsUtils.DebugRectInt(new((int)node.x, (int)node.z, 1, 1), Color.red, visualDelay);
+                await Awaitable.WaitForSecondsAsync(visualDelay);
+            }
+            
+            if (node == end)
+            {
+                ReconstructPath(path, end, start);
+                return;
+            }
             
             foreach (Vector3 edge in graph.Edges(node))
             {
@@ -127,8 +153,8 @@ public class Player : MonoBehaviour
                     
                     switch (searchMode)
                     {
-                        case SearchMode.Dijkstra: queue.Add(new KeyValuePair<Vector3, float>(edge, newCost)); break;
-                        case SearchMode.AStar:    queue.Add(new KeyValuePair<Vector3, float>(edge, newCost + Vector3.Distance(edge, node))); break;
+                        case SearchMode.Dijkstra: queue.Add(new KeyValuePair<Vector3, float>(edge, newCost                              )); break;
+                        case SearchMode.AStar   : queue.Add(new KeyValuePair<Vector3, float>(edge, newCost + (Vector3.Distance(edge, end) * heuristicWeight))); break;
                     }
                 }
             }
@@ -137,19 +163,20 @@ public class Player : MonoBehaviour
         }
         
         Debug.LogWarning("No path Found");
-        return new();
+        return;
     }
     
-    List<Vector3> ReconstructPath(Dictionary<Vector3, Vector3> path, Vector3 end, Vector3 start)
+    void ReconstructPath(Dictionary<Vector3, Vector3> newPath, Vector3 end, Vector3 start)
     {
         List<Vector3> returnList = new();
         returnList.Add(end);
         
         while (returnList.Last() != start)
         {
-            returnList.Add(path[returnList.Last()]);
+            returnList.Add(newPath[returnList.Last()]);
         }
         
-        return returnList;
+        path = returnList;
+        path.Reverse();
     }
 }

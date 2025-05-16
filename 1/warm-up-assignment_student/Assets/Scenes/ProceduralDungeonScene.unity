@@ -289,8 +289,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b88a1d30778b34f459d5ae81fd4dd3c8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  searchMode: 0
+  searchMode: 1
   showGraph: 1
+  visualDelay: 0
+  heuristicWeight: 1
 --- !u!23 &400353335
 MeshRenderer:
   m_ObjectHideFlags: 0

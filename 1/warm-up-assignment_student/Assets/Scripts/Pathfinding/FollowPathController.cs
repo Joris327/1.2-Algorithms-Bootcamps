@@ -1,8 +1,6 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
 
 public class FollowPathController : MonoBehaviour
 {
@@ -30,6 +28,7 @@ public class FollowPathController : MonoBehaviour
         for (int i = 0; i < path.Count; i++)
         {
             Vector3 target = path[i];
+            target.y = 1;
             // Move towards the target position
             while (Vector3.Distance(transform.position, target) > 0.1f)
             {
@@ -37,7 +36,7 @@ public class FollowPathController : MonoBehaviour
                 yield return null;
             }
             
-            Debug.Log($"Reached target: {target}");
+            //Debug.Log($"Reached target: {target}");
         }
         isMoving = false;
     }
