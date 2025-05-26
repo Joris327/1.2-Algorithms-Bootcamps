@@ -8,6 +8,7 @@ public class VisualsGenerator : MonoBehaviour
     //serialized fields
     [SerializeField] DungeonGenerator dungeonGenerator;
     [Min(0)] public float visualDelay = 0;
+    [SerializeField] bool floodFillRecursively = true;
     [SerializeField] bool debugDraw = false;
     [SerializeField] Player player;
     [SerializeField] Transform floorTilePrefab;
@@ -49,7 +50,8 @@ public class VisualsGenerator : MonoBehaviour
         wallsWatch.Stop();
 
         System.Diagnostics.Stopwatch floodFillWatch = System.Diagnostics.Stopwatch.StartNew();
-        await FloodFill();
+        if (floodFillRecursively) await FloodFillRecursive();
+        else await FloodFill();
         floodFillWatch.Stop();
         
         System.Diagnostics.Stopwatch graphWatch = System.Diagnostics.Stopwatch.StartNew();
@@ -122,11 +124,13 @@ public class VisualsGenerator : MonoBehaviour
             {
                 int tileCase = tileMap[i, j] * 8 + tileMap[i + 1, j] * 4 + tileMap[i, j + 1] * 1 + tileMap[i + 1, j + 1] * 2;
 
-                if (visualDelay > 0)
-                {
-                    AlgorithmsUtils.DebugRectInt(new(j, i, 2, 2), Color.red, visualDelay);
-                    await Awaitable.WaitForSecondsAsync(visualDelay);
-                }
+                // if (visualDelay > 0)
+                // {
+                //     AlgorithmsUtils.DebugRectInt(new(j, i, 2, 2), Color.red, visualDelay);
+                //     await Awaitable.WaitForSecondsAsync(visualDelay);
+                // }
+                bool b = false;
+                if (b) await Awaitable.WaitForSecondsAsync(1);
 
                 if (tileCase < 1 || tileCase >= wallPrefabs.Length) continue;
 
@@ -189,6 +193,37 @@ public class VisualsGenerator : MonoBehaviour
             }
         }
     }
+    
+    async Task FloodFillRecursive()
+    {
+        if (visualDelay > 0)
+        {
+            //AlgorithmsUtils.DebugRectInt(new(pos.x, pos.y, 1, 1), Color.red, visualDelay);
+            await Awaitable.WaitForSecondsAsync(visualDelay);
+        }
+        
+        RectRoom startRoom = dungeonGenerator.GetFirstRoom;
+        await PlaceTile(new((int)startRoom.roomData.center.x, (int)startRoom.roomData.center.y));
+    }
+    
+    async Task PlaceTile(Vector2Int pos)
+    {
+        if (visualDelay > 0)
+        {
+            AlgorithmsUtils.DebugRectInt(new(pos.x, pos.y, 1, 1), Color.red, visualDelay);
+            await Awaitable.WaitForSecondsAsync(visualDelay);
+        }
+        
+        if (tileMap[pos.y, pos.x] != 0) return;
+        
+        tileMap[pos.y, pos.x] = 2;
+        Instantiate(floorTilePrefab, new Vector3(pos.x + 0.5f, 0, pos.y + 0.5f), floorTilePrefab.rotation, visualsContainer.transform);
+        
+        if (tileMap[pos.y  , pos.x+1] == 0) await PlaceTile(new(pos.x+1, pos.y  ));
+        if (tileMap[pos.y  , pos.x-1] == 0) await PlaceTile(new(pos.x-1, pos.y  ));
+        if (tileMap[pos.y+1, pos.x  ] == 0) await PlaceTile(new(pos.x,   pos.y+1));
+        if (tileMap[pos.y-1, pos.x  ] == 0) await PlaceTile(new(pos.x,   pos.y-1));
+    }
 
     Graph<Vector3> ConstructGraph()
     {
@@ -201,7 +236,7 @@ public class VisualsGenerator : MonoBehaviour
             {
                 if (tileMap[j, i] == 2) graph.AddNode(new(i+0.5f, 0, j+0.5f));
             }
-        }
+        } 
 
         foreach (Vector3 tilePos in graph.Keys())
         {

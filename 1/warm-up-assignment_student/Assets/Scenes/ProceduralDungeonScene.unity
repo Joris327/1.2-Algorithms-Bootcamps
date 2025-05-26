@@ -715,6 +715,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dungeonGenerator: {fileID: 2033840194}
   visualDelay: 0
+  floodFillRecursively: 1
   debugDraw: 1
   player: {fileID: 400353333}
   floorTilePrefab: {fileID: 4786606637186289427, guid: ee2ec93b0f8db314d99c5c4ca581bc18, type: 3}
