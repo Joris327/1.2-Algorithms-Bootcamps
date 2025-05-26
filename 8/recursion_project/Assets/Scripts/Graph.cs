@@ -140,6 +140,13 @@ public class Graph<T>
 
     private void DFSRecursion(HashSet<T> discovered, T v)
     {
-        /* */
+        if (discovered.Contains(v)) return;
+        
+        discovered.Add(v);
+        Debug.Log(v);
+        foreach(T edge in GetNeighbors(v))
+        {
+            DFSRecursion(discovered, edge);
+        }
     }
 }

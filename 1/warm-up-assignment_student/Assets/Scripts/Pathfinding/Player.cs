@@ -119,18 +119,18 @@ public class Player : MonoBehaviour
         Vector3 start = FindClosestNode(transform.position);
         Vector3 end = FindClosestNode(clickPosition);
         
-        List<KeyValuePair<Vector3, float>> queue = new(); //node, priority
+        List<KeyValuePair<Vector3, float>> toDoList = new(); //node, priority
 	    Dictionary<Vector3, float> costs = new(); //node, cost
         Dictionary<Vector3, Vector3> path = new(); //edge, node
         discovered = new();
         
-        queue.Add(new KeyValuePair<Vector3, float>(start,0));
+        toDoList.Add(new KeyValuePair<Vector3, float>(start,0));
 	    costs.Add(start, 0);
         
-        while (queue.Count > 0)
+        while (toDoList.Count > 0)
         {
-            Vector3 node = queue[^1].Key;
-            queue.RemoveAt(queue.Count-1);
+            Vector3 node = toDoList[^1].Key;
+            toDoList.RemoveAt(toDoList.Count-1);
             discovered.Add(node);
             
             if (visualDelay > 0)
@@ -159,13 +159,13 @@ public class Player : MonoBehaviour
                     
                     switch (searchMode)
                     {
-                        case SearchMode.Dijkstra: queue.Add(new KeyValuePair<Vector3, float>(edge, newCost                              )); break;
-                        case SearchMode.AStar   : queue.Add(new KeyValuePair<Vector3, float>(edge, newCost + (Vector3.Distance(edge, end) * heuristicWeight))); break;
+                        case SearchMode.Dijkstra: toDoList.Add(new KeyValuePair<Vector3, float>(edge, newCost                              )); break;
+                        case SearchMode.AStar   : toDoList.Add(new KeyValuePair<Vector3, float>(edge, newCost + (Vector3.Distance(edge, end) * heuristicWeight))); break;
                     }
                 }
             }
             
-            queue = queue.OrderByDescending(node => node.Value).ToList();
+            toDoList = toDoList.OrderByDescending(node => node.Value).ToList();
         }
         
         Debug.LogWarning("No path Found");
