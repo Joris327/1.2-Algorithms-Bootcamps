@@ -187,6 +187,9 @@ public class Player : MonoBehaviour
         return;
     }
     
+    /// <summary>
+    /// traces the found path back to the origin for the player to follow
+    /// </summary>
     void ReconstructPath(Dictionary<Vector3, Vector3> newPath, Vector3 end, Vector3 start)
     {
         List<Vector3> returnList = new();
