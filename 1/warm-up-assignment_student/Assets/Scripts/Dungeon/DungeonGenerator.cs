@@ -7,6 +7,9 @@ using Unity.AI.Navigation;
 using UnityEngine;
 using UnityEngine.AI;
 
+/// <summary>
+/// Generates dungeons
+/// </summary>
 [RequireComponent(typeof(NavMeshSurface))]
 public class DungeonGenerator : MonoBehaviour
 {
@@ -15,7 +18,7 @@ public class DungeonGenerator : MonoBehaviour
     //enums
     enum SplitAbility { cannot, horizontally, vertically, bothSides }
     enum VisualsMethod { simple, marchingSquares }
-
+    
     //private fields
     readonly List<RectDoor> doors = new();
     int doorSize;
@@ -82,8 +85,6 @@ public class DungeonGenerator : MonoBehaviour
     [SerializeField] bool createVisuals = true;
     [SerializeField] VisualsMethod visualsMethod = VisualsMethod.simple;
     [SerializeField] VisualsGenerator visualsGenerator;
-    [SerializeField] GameObject simpleWallPrefab;
-    [SerializeField] GameObject simpleFloorPrefab;
     
     
     //statistics
@@ -125,6 +126,9 @@ public class DungeonGenerator : MonoBehaviour
     #endregion
     #region Generator
     
+    /// <summary>
+    /// start generating a new dungeon
+    /// </summary>
     async Task StartGenerator()
     {
         if (Application.isEditor && !Application.isPlaying) return;
@@ -141,6 +145,9 @@ public class DungeonGenerator : MonoBehaviour
         if (visualDelay == 0 && visualsGenerator.visualDelay == 0) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
     }
     
+    /// <summary>
+    /// Clear all existing data for the dungeon to prepare it for generation.
+    /// </summary>
     void ClearGenerator()
     {
         Debug.ClearDeveloperConsole();
@@ -162,6 +169,9 @@ public class DungeonGenerator : MonoBehaviour
         DebugDrawingBatcher.GetInstance().ClearCalls();
     }
     
+    /// <summary>
+    /// called by the StartGenerator() method. manages the generation process. 
+    /// </summary>
     async Task Generate()
     {
         Camera.main.transform.position = new(
@@ -204,7 +214,7 @@ public class DungeonGenerator : MonoBehaviour
         
         if (createVisuals)
         {
-            if (visualsMethod == VisualsMethod.simple) await CreateSimpleVisuals();
+            if (visualsMethod == VisualsMethod.simple) await visualsGenerator.CreateSimpleVisuals(nodeGraph, doors.ToArray());
             else await visualsGenerator.Generate();
         }
 
@@ -243,6 +253,9 @@ public class DungeonGenerator : MonoBehaviour
         GetComponent<NavMeshSurface>().BuildNavMesh();
     }
     
+    /// <summary>
+    /// prepares the generator for a new cycle
+    /// </summary>
     void SetupGenerator()
     {
         nodeGraph.Clear();
@@ -264,6 +277,9 @@ public class DungeonGenerator : MonoBehaviour
     
     #endregion
     #region Room Splitting
+    /// <summary>
+    /// populate the dungeon with rooms, by making one big room and splitting it until all rooms are between a minimum and maximum size.
+    /// </summary>
     async Task GenerateRooms()
     {
         Queue<RectRoom> toDoQueue = new();
@@ -310,6 +326,9 @@ public class DungeonGenerator : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// split a single room and add it to the queue if it can be split further.
+    /// </summary>
     void SplitRoom(RectRoom room, SplitAbility splitAbility, Queue<RectRoom> toDoQueue)
     {
         if (splitAbility == SplitAbility.cannot)
@@ -320,7 +339,7 @@ public class DungeonGenerator : MonoBehaviour
         if (splitAbility == SplitAbility.bothSides) splitAbility = (SplitAbility)random.Next(1, 3);
         
         RectRoom newRoom1;
-        RectRoom newRoom2 = new(new(room.roomData.x, room.roomData.y, room.roomData.width, room.roomData.height));
+        RectRoom newRoom2 = new(new RectInt(room.roomData.x, room.roomData.y, room.roomData.width, room.roomData.height));
         
         int adjustedMinRoomSize = minRoomSize + (wallThickness * 3);
         
@@ -366,10 +385,16 @@ public class DungeonGenerator : MonoBehaviour
         else nodeGraph.AddNode(newRoom1);
     }
     
+    /// <summary>
+    /// checks if the overlap between two rooms is big enough to fit a door along their shared wall.
+    /// </summary>
     bool OverlapsProperly(RectInt overlap) => overlap.width >= (wallThickness * 4) + doorSize || overlap.height >= (wallThickness * 4) + doorSize;
     
     #endregion
     #region Generating Zones
+    /// <summary>
+    /// generates zones which will be used to organise the dungeon into smaller chunks. this will speed up overlap checking later
+    /// </summary>
     async Task GenerateZones()
     {
         int zoneWidth = worldWidth / zoneAmount.x;
@@ -384,7 +409,7 @@ public class DungeonGenerator : MonoBehaviour
             {
                 if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
                 if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
-                Zone newZone = new(new(i * zoneWidth, j * zoneheight, zoneWidth, zoneheight));
+                Zone newZone = new(new RectInt(i * zoneWidth, j * zoneheight, zoneWidth, zoneheight));
                 zones[i, j] = newZone;
             }
         }
@@ -443,6 +468,9 @@ public class DungeonGenerator : MonoBehaviour
     
     #endregion
     #region Spanning Tree
+    /// <summary>
+    /// removes edges from the nodegraph until a spanning tree is left.
+    /// </summary>
     async Task ConvertToSpanningTree()
     {
         RectRoom[] keys = nodeGraph.Keys();
@@ -490,37 +518,36 @@ public class DungeonGenerator : MonoBehaviour
     
     #endregion
     #region Room Removal
-    
+    /// <summary>
+    /// remove rooms from the graph until the desired amount remains
+    /// </summary>
     async Task RemoveRooms()
     {
         if (roomRemovalPercentage <= 0) return;
         
         int amountToRemove = Mathf.RoundToInt(nodeGraph.KeyCount() * (roomRemovalPercentage / 100));
         
+        List<RectRoom> toRemoveList = new();
+        RectRoom[] roomsList = nodeGraph.Keys();
+        
+        foreach (var item in roomsList)
+        {
+            if (nodeGraph.EdgeCount(item) < 2) toRemoveList.Add(item);
+        }
+        
         while (roomsRemoved < amountToRemove)
         {
-            List<RectRoom> toRemoveList = new();
-            RectRoom[] roomsList = nodeGraph.Keys();
+            if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
+            if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
             
-            foreach (var item in roomsList)
-            {
-                if (nodeGraph.EdgeCount(item) < 2) toRemoveList.Add(item);
-            }
+            RectRoom nodeToRemove = toRemoveList[random.Next(0, toRemoveList.Count)];
             
-            for (int i = toRemoveList.Count; i > 0; i--)
-            {
-                if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
-                if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
-                
-                RectRoom nodeToRemove = toRemoveList[random.Next(0, toRemoveList.Count)];
-                
-                toRemoveList.Remove(nodeToRemove);
-                nodeGraph.RemoveNode(nodeToRemove);
-                roomsRemoved++;
-                
-                if (roomsRemoved >= amountToRemove) break;
-                if (nodeGraph.KeyCount() == 1) break;
-            }
+            RectRoom adjacentRoom = nodeGraph.Edges(nodeToRemove)[0];
+            if (nodeGraph.Edges(adjacentRoom).Count == 0) toRemoveList.Add(adjacentRoom);
+            
+            toRemoveList.Remove(nodeToRemove);
+            nodeGraph.RemoveNode(nodeToRemove);
+            roomsRemoved++;
             
             if (nodeGraph.KeyCount() == 1) break;
         }
@@ -528,7 +555,9 @@ public class DungeonGenerator : MonoBehaviour
     
     #endregion
     #region Door Placement
-    
+    /// <summary>
+    /// places doors at valid positions along a shared wall between rooms.
+    /// </summary>
     async Task PlaceDoors()
     {
         RectRoom[] keyList = nodeGraph.Keys();
@@ -572,12 +601,11 @@ public class DungeonGenerator : MonoBehaviour
                     else xPos = key.roomData.xMin;
                 }
                 
-                newDoor = new(new(xPos, yPos, doorSize, doorSize));
+                newDoor = new RectDoor(new RectInt(xPos, yPos, doorSize, doorSize));
                 doors.Add(newDoor);
                 
                 key.doors.Add(doors.Count-1);
                 connectedRoom.doors.Add(doors.Count-1);
-                
                 
                 doorsGenerated++;
             }
@@ -586,13 +614,13 @@ public class DungeonGenerator : MonoBehaviour
     
     #endregion
     #region Helper Methods
-    
-    //async Awaitable DrawDungeon()
+    /// <summary>
+    /// draws a 2d representation of the dungeon data
+    /// </summary>
     void DrawDungeon()
     {
         if (!debugDraw) return;
-        //await Awaitable.BackgroundThreadAsync();
-        //int counter = 0;
+        
         foreach (var room in nodeGraph.GetGraph())
         {
             if (room.Value.Count > 0) AlgorithmsUtils.DebugRectInt(room.Key.roomData, Color.yellow, duration, false, debugWallHeight);
@@ -613,8 +641,8 @@ public class DungeonGenerator : MonoBehaviour
             {
                 foreach (RectRoom r in room.Value)
                 {
-                    Vector3 rCenter = new (r.roomData.center.x, 0, r.roomData.center.y);
-                    Vector3 roomCenter = new (room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
+                    Vector3 rCenter = new(r.roomData.center.x, 0, r.roomData.center.y);
+                    Vector3 roomCenter = new(room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
                     Debug.DrawLine(rCenter, roomCenter, Color.red, duration);
                 }
             }
@@ -626,18 +654,11 @@ public class DungeonGenerator : MonoBehaviour
                     RectDoor door = doors[d];
                     AlgorithmsUtils.DebugRectInt(door.doorData, Color.blue, duration, false, debugWallHeight);
                     
-                    Vector3 doorCenter = new (door.doorData.center.x, 0, door.doorData.center.y);
-                    Vector3 roomCenter = new (room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
+                    Vector3 doorCenter = new(door.doorData.center.x, 0, door.doorData.center.y);
+                    Vector3 roomCenter = new(room.Key.roomData.center.x, 0, room.Key.roomData.center.y);
                     Debug.DrawLine(doorCenter, roomCenter, Color.white, duration);
                 }
             }
-            
-            // counter++;
-            // if (counter >= 100)
-            // {
-            //     counter = 0;
-            //     await Awaitable.NextFrameAsync();
-            // }
         }
         
         if (drawZones)
@@ -651,26 +672,29 @@ public class DungeonGenerator : MonoBehaviour
         
         if (drawWorldBorder)
         {
-            // DebugExtension.DebugLocalCube(
-            //     transform,
-            //     new Vector3(worldWidth, 0, worldHeight),
-            //     new Vector3(worldWidth/2f, 0, worldHeight/2f)
-            // );
             RectInt wordBorder = new(0, 0, worldWidth, worldHeight);
             AlgorithmsUtils.DebugRectInt(wordBorder, Color.white, duration, false, 0);
         }
-        
-        //await Awaitable.MainThreadAsync();
-        //await Awaitable.NextFrameAsync();
-        //await DrawDungeon();
     }
     
+    /// <summary>
+    /// checks whether the given value is even or not.
+    /// </summary>
     bool IsEven(int value) => value % 2 == 0;
     
+    /// <summary>
+    /// checks whether a room can be split in a way that leaves both new rooms at at least minimum room size.
+    /// </summary>
     bool CanBeSplit(RectRoom room) => room.roomData.width > (minRoomSize * 2) + (wallThickness * 6) || room.roomData.height > (minRoomSize * 2) + (wallThickness * 6);
     
+    /// <summary>
+    /// checks whether a room is so big that it must be split (bigger then maxRoomSize).
+    /// </summary>
     bool MustBeSplit(RectRoom room) => room.roomData.width > (maxRoomSize - (wallThickness * 4)) || room.roomData.height > (maxRoomSize - (wallThickness * 4));
     
+    /// <summary>
+    /// determine whether a room can be split horizontally, vertically, both or not.
+    /// </summary>
     SplitAbility DetermineSplitAbility(RectRoom room)
     {
         //the smallest size at which a room can be split and produce 2 new rooms equal or bigger than minRoomSize.
@@ -687,62 +711,5 @@ public class DungeonGenerator : MonoBehaviour
         return SplitAbility.bothSides;
     }
     
-    #endregion
-    #region Create Visuals
-    async Task CreateSimpleVisuals()
-    {
-        System.Diagnostics.Stopwatch visualsGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
-        
-        visualsContainer = new("Dungeon geometry");
-        byte[,] map = new byte[worldWidth, worldHeight];
-        
-        RectRoom[] keys = nodeGraph.Keys();
-        foreach (RectRoom room in keys)
-        {
-            if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
-            if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
-            
-            Vector3 floorPos = new(room.roomData.center.x, 0, room.roomData.center.y);
-            GameObject floor = Instantiate(simpleFloorPrefab, floorPos, simpleFloorPrefab.transform.rotation, visualsContainer.transform);
-            floor.transform.localScale = new(room.roomData.width, room.roomData.height, 1);
-            
-            RectInt roomData = room.roomData;
-            for (int i = roomData.yMin; i < roomData.yMax-1; i++)
-            {
-                map[roomData.xMax-1, i] = 1;
-                map[roomData.xMax-2, i] = 1;
-                map[roomData.xMin  , i] = 1;
-                map[roomData.xMin+1, i] = 1;
-            }
-            for (int i = roomData.xMin; i < roomData.xMax-1; i++)
-            {
-                map[i, roomData.yMax-1] = 1;
-                map[i, roomData.yMax-2] = 1;
-                map[i, roomData.yMin  ] = 1;
-                map[i, roomData.yMin+1] = 1;
-            }
-        }
-        
-        foreach (RectDoor door in doors)
-        {
-            foreach (Vector2Int doorPos in door.doorData.allPositionsWithin)
-            {
-                map[doorPos.x, doorPos.y] = 2;
-            }
-        }
-        
-        for (int i = 0; i < worldWidth; i++)
-        {
-            for (int j = 0; j < worldHeight; j++)
-            {
-                byte pos = map[i, j];
-                if (pos == 1) Instantiate(simpleWallPrefab, new Vector3(i + 0.5f, 0.5f, j + 0.5f), Quaternion.identity, visualsContainer.transform);
-            }
-        }
-        
-        visualsGenerationWatch.Stop();
-        Debug.Log("Sufficient Visuals generation time: " + Math.Round(visualsGenerationWatch.Elapsed.TotalMilliseconds, 3));
-    }
-
     #endregion
 }

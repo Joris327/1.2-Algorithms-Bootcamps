@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AI;
 
+/// <summary>
+/// does pathfinding
+/// </summary>
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(FollowPathController))]
 public class Player : MonoBehaviour
@@ -55,7 +58,7 @@ public class Player : MonoBehaviour
             }
         }
 
-        // Add visual debugging here
+        // Add debug visuals
         DebugExtension.DebugCircle(clickPosition, Color.blue);
         Debug.DrawLine(Camera.main.transform.position, clickPosition, Color.yellow);
         
@@ -84,17 +87,26 @@ public class Player : MonoBehaviour
             }
         }
     }
-
+    
+    /// <summary>
+    /// set destination for the unity AI agent
+    /// </summary>
     void SetDestination(Vector3 target)
     {
         if (agent.enabled) agent.destination = target;
     }
-
+    
+    /// <summary>
+    /// gives the node graph of the dungeon to the player so it can do pathfinding.
+    /// </summary>
     public void SetGraph(Graph<Vector3> newGraphMap)
     {
-        graph = newGraphMap;
+        graph = new Graph<Vector3>(newGraphMap);
     }
     
+    /// <summary>
+    /// find the node that is closest to the place that was clicked on screen.
+    /// </summary>
     Vector3 FindClosestNode(Vector3 input)
     {
         Vector3 closestNode = new();
@@ -111,7 +123,10 @@ public class Player : MonoBehaviour
         
         return closestNode;
     }
-
+    
+    /// <summary>
+    /// search the nodegraph for the end node 
+    /// </summary>
     async Task FindPath()
     {
         Debug.Log("---");

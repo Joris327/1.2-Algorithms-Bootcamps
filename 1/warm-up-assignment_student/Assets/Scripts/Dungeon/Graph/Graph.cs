@@ -6,6 +6,13 @@ public class Graph<T>
 {
     Dictionary<T, List<T>> adjacencyList = new();
     
+    public Graph(){}
+    
+    public Graph(Graph<T> otherGraph)
+    {
+        adjacencyList = new(otherGraph.adjacencyList);
+    }
+    
     public void Clear() 
     { 
         adjacencyList.Clear(); 
