@@ -631,7 +631,7 @@ MonoBehaviour:
   startSeed: 0
   visualDelay: 0
   player: {fileID: 400353333}
-  worldSize: {x: 25, y: 25}
+  worldSize: {x: 50, y: 50}
   zoneAmount: {x: 2, y: 2}
   minRoomSize: 5
   maxRoomSize: 10

@@ -388,8 +388,9 @@ public class DungeonGenerator : MonoBehaviour
         int zoneWidth = worldSize.x / zoneAmount.x;
         int zoneheight = worldSize.y / zoneAmount.y;
         
-        if ((worldSize.x + 0f / zoneAmount.x) % 1 > 0) zoneWidth++;
-        if ((worldSize.y + 0f / zoneAmount.y) % 1 > 0) zoneheight++;
+        //compensate for potentially falling short of the total dungeon width and height
+        if ((worldSize.x + 1f / zoneAmount.x) % 1 > 0) zoneWidth++;
+        if ((worldSize.y + 1f / zoneAmount.y) % 1 > 0) zoneheight++;
         
         for (int i = 0; i < zoneAmount.x; i++)
         {
