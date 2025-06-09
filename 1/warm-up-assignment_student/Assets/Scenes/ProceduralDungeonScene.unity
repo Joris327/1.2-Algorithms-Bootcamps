@@ -627,13 +627,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   awaitableUtils: {fileID: 2033840196}
-  seed: 0
-  startSeed: 1
-  dungeonsToGenerate: 1
+  seed: 534011718
+  startSeed: 0
   visualDelay: 0
   player: {fileID: 400353333}
-  worldWidth: 50
-  worldHeight: 50
+  worldSize: {x: 25, y: 25}
   zoneAmount: {x: 2, y: 2}
   minRoomSize: 5
   maxRoomSize: 10
@@ -654,8 +652,6 @@ MonoBehaviour:
   createVisuals: 1
   visualsMethod: 1
   visualsGenerator: {fileID: 2033840198}
-  simpleWallPrefab: {fileID: 9075065626098617084, guid: f363a0dc37fecd243a9b17ac75ff1296, type: 3}
-  simpleFloorPrefab: {fileID: 8240098480757791931, guid: 79edd033ff3ef384699e163416979c3e, type: 3}
 --- !u!114 &2033840196
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -714,10 +710,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dungeonGenerator: {fileID: 2033840194}
+  awaitableUtils: {fileID: 2033840196}
   visualDelay: 0
   floodFillRecursively: 1
   debugDraw: 1
   player: {fileID: 400353333}
+  simpleWallPrefab: {fileID: 9075065626098617084, guid: f363a0dc37fecd243a9b17ac75ff1296, type: 3}
+  simpleFloorPrefab: {fileID: 8240098480757791931, guid: 79edd033ff3ef384699e163416979c3e, type: 3}
   floorTilePrefab: {fileID: 4786606637186289427, guid: ee2ec93b0f8db314d99c5c4ca581bc18, type: 3}
   wallPrefabs:
   - {fileID: 2878497128050032797, guid: 76bb09cb4c27d8a4696214dce0326bdd, type: 3}

@@ -28,10 +28,8 @@ public class DungeonGenerator : MonoBehaviour
     
     System.Random random = new();
     
-    GameObject visualsContainer;
-    
     //public fields
-    public Vector2Int WorldSize { get { return new(worldWidth, worldHeight); } }
+    public Vector2Int WorldSize { get { return new(worldSize.x, worldSize.y); } }
     public RectRoom GetFirstRoom { get { return nodeGraph.First(); } }
     public RectRoom[] GetRooms { get { return nodeGraph.Keys(); } }
     public RectDoor[] GetDoors { get { return doors.ToArray(); } }
@@ -43,18 +41,16 @@ public class DungeonGenerator : MonoBehaviour
     [SerializeField] int seed = 0;
     [Tooltip("The seed used to generate the dungeon. If 0, will generate new random seed for each dungeon. Else will use the given seed for every dungeon generated.")]
     [SerializeField] int startSeed = 0;
-    [SerializeField, Min(0)] int dungeonsToGenerate = 1;
     [SerializeField, Min(0)] float visualDelay = 0.5f;
     [SerializeField] Player player;
     
     [Header("World")]
-    [SerializeField, Min(0)] int worldWidth = 100;
-    [SerializeField, Min(0)] int worldHeight = 100;
-    [SerializeField, Min(1)] Vector2Int zoneAmount = new(10, 10);
+    [SerializeField] Vector2Int worldSize = new(25, 25);
+    [SerializeField] Vector2Int zoneAmount = new(10, 10);
     
     [Header("Rooms")]
-    [SerializeField] int minRoomSize = 10;
-    [SerializeField] int maxRoomSize = 20;
+    [SerializeField, Min(5)] int minRoomSize = 10;
+    [SerializeField, Min(5)] int maxRoomSize = 20;
     [SerializeField, Min(0)] int roomsLimit = 1000;
     [SerializeField, Range(0, 100)] int chanceToSplit = 90;
     [SerializeField] bool useZones = true;
@@ -69,7 +65,7 @@ public class DungeonGenerator : MonoBehaviour
     [SerializeField, Range(0, 100)] float roomRemovalPercentage = 10;
     
     [Header("Walls")]
-    [SerializeField, Min(0)] int wallThickness = 1;
+    [SerializeField, Min(1)] int wallThickness = 1;
     
     [Header("Debug")]
     [SerializeField] bool debugDraw = true;
@@ -92,7 +88,6 @@ public class DungeonGenerator : MonoBehaviour
     List<int> totalRoomsRemovedList = new();
     List<int> totalRoomsFinalDungeonList = new();
     List<double> DungeonGenerationTimesList = new();
-    int dungeonsGeneratedCount = 0;
     
     int roomsGenerated = 0;
     int roomsSplit = 0;
@@ -132,10 +127,26 @@ public class DungeonGenerator : MonoBehaviour
     async Task StartGenerator()
     {
         if (Application.isEditor && !Application.isPlaying) return;
-        if (dungeonsToGenerate < 1) return;
-        
         
         Debug.Log("Generating...");
+
+        int roomSizeRequirement = wallThickness * 2 + doorSize;
+        if (worldSize.x < roomSizeRequirement || worldSize.y < roomSizeRequirement)
+        {
+            Debug.LogError("Generation aborted: worldSize.x and y need to be at least " + roomSizeRequirement, this);
+            return;
+        }
+
+        if (useZones && zoneAmount.x < 1)
+        {
+            Debug.LogWarning("zoneAmount.x was lower that 1, which is not allowed. it has been set to 1.", this);
+            zoneAmount.x = 1;
+        }
+        if (useZones && zoneAmount.y < 1)
+        {
+            Debug.LogWarning("zoneAmount.y was lower that 1, which is not allowed. it has been set to 1.", this);
+            zoneAmount.y = 1;
+        }
         
         ClearGenerator();
         if (visualDelay > 0 || visualsGenerator.visualDelay > 0) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
@@ -144,29 +155,35 @@ public class DungeonGenerator : MonoBehaviour
         
         if (visualDelay == 0 && visualsGenerator.visualDelay == 0) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
     }
-    
+
     /// <summary>
     /// Clear all existing data for the dungeon to prepare it for generation.
     /// </summary>
     void ClearGenerator()
     {
-        Debug.ClearDeveloperConsole();
         StopAllCoroutines();
+        visualsGenerator.Reset();
         
-        dungeonsGeneratedCount = 0;
-        
+        roomsSplit = 0;
+        roomsGenerated = 0;
+        roomsRemoved = 0;
+        roomsBeforeRemoval = 0;
+
         totalGeneratedRoomsList.Clear();
         totalRoomsRemovedList.Clear();
         totalRoomsFinalDungeonList.Clear();
         DungeonGenerationTimesList.Clear();
-        
-        seed = startSeed;
         nodeGraph.Clear();
         doors.Clear();
-        
-        Destroy(visualsContainer);
-        
-        DebugDrawingBatcher.GetInstance().ClearCalls();
+
+        random = new(seed);
+        if (startSeed == 0) seed = random.Next(0, int.MaxValue);
+        else seed = startSeed;
+
+        doorSize = wallThickness * 2;
+        zones = new Zone[zoneAmount.x, zoneAmount.y];
+
+        if (DebugDrawingBatcher.HasInstances()) DebugDrawingBatcher.GetInstance().ClearCalls();
     }
     
     /// <summary>
@@ -174,61 +191,60 @@ public class DungeonGenerator : MonoBehaviour
     /// </summary>
     async Task Generate()
     {
-        Camera.main.transform.position = new(
-            worldWidth/2,
-            worldHeight > worldWidth ? worldHeight : worldWidth,
-            worldHeight/2
+        Camera.main.transform.position = new( //center the cemera above the dungeon.
+            worldSize.x / 2,
+            worldSize.y > worldSize.x ? worldSize.y : worldSize.x,
+            worldSize.y / 2
         );
         
+        DebugDrawingBatcher.duration = duration;
+
         if (visualDelay == 0) await Awaitable.BackgroundThreadAsync();
         System.Diagnostics.Stopwatch totalWatch = System.Diagnostics.Stopwatch.StartNew();
         System.Diagnostics.Stopwatch dataWatch = System.Diagnostics.Stopwatch.StartNew();
         
-        SetupGenerator();
-        
         System.Diagnostics.Stopwatch roomGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
         await GenerateRooms();
         roomGenerationWatch.Stop();
-        
+
         System.Diagnostics.Stopwatch zoneGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
         if (useZones) await GenerateZones();
         zoneGenerationWatch.Stop();
-        
+
         roomsBeforeRemoval = nodeGraph.KeyCount();
-        
+
         System.Diagnostics.Stopwatch spanningTreeWatch = System.Diagnostics.Stopwatch.StartNew();
         await ConvertToSpanningTree();
         spanningTreeWatch.Stop();
-        
+
         System.Diagnostics.Stopwatch roomRemovalWatch = System.Diagnostics.Stopwatch.StartNew();
         await RemoveRooms();
         roomRemovalWatch.Stop();
-        
+
         System.Diagnostics.Stopwatch doorGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
         await PlaceDoors();
         doorGenerationWatch.Stop();
-        
+
         dataWatch.Stop();
-        
+
         await Awaitable.MainThreadAsync();
-        
+
         if (createVisuals)
         {
             if (visualsMethod == VisualsMethod.simple) await visualsGenerator.CreateSimpleVisuals(nodeGraph, doors.ToArray());
-            else await visualsGenerator.Generate();
+            else await visualsGenerator.CreateGoodVisuals();
         }
-
+        
+        //transport player to valid position in the dungeon
         Vector2 roomCenter = nodeGraph.First().roomData.center;
         Vector3 newPos = new(roomCenter.x, 1, roomCenter.y);
         player.transform.position = newPos;
-        
+
         NavMeshAgent agent = player.GetComponent<NavMeshAgent>();
         agent.nextPosition = newPos;
-        
+
         totalWatch.Stop();
-        dungeonsGeneratedCount++;
-        await Awaitable.MainThreadAsync();
-        
+
         Debug.Log("---");
         Debug.Log("Room generarion time: " + Math.Round(roomGenerationWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("    Rooms generated: " + roomsGenerated);
@@ -243,36 +259,8 @@ public class DungeonGenerator : MonoBehaviour
         Debug.Log("    Doors generated: " + doorsGenerated);
         Debug.Log("Data generation time: " + Math.Round(dataWatch.Elapsed.TotalMilliseconds, 3));
         Debug.Log("Total generation time: " + Math.Round(totalWatch.Elapsed.TotalMilliseconds, 3));
-        
-        if (dungeonsGeneratedCount < dungeonsToGenerate)
-        {
-            await StartGenerator();
-            return;
-        }
-        
+
         GetComponent<NavMeshSurface>().BuildNavMesh();
-    }
-    
-    /// <summary>
-    /// prepares the generator for a new cycle
-    /// </summary>
-    void SetupGenerator()
-    {
-        nodeGraph.Clear();
-        zones = new Zone[zoneAmount.x, zoneAmount.y];
-        
-        if (startSeed == 0) seed = random.Next(0, int.MaxValue);
-        else seed = startSeed;
-        
-        random = new(seed);
-        doorSize = wallThickness * 2;
-        
-        roomsSplit = 0;
-        roomsGenerated = 0;
-        roomsRemoved = 0;
-        roomsBeforeRemoval = 0;
-        
-        DebugDrawingBatcher.duration = duration;
     }
     
     #endregion
@@ -283,7 +271,7 @@ public class DungeonGenerator : MonoBehaviour
     async Task GenerateRooms()
     {
         Queue<RectRoom> toDoQueue = new();
-        RectRoom firstRoom = new(new(0, 0, worldWidth, worldHeight));
+        RectRoom firstRoom = new(new(0, 0, worldSize.x, worldSize.y));
         toDoQueue.Enqueue(firstRoom);
         nodeGraph.AddNode(firstRoom);
         
@@ -397,11 +385,11 @@ public class DungeonGenerator : MonoBehaviour
     /// </summary>
     async Task GenerateZones()
     {
-        int zoneWidth = worldWidth / zoneAmount.x;
-        int zoneheight = worldHeight / zoneAmount.y;
+        int zoneWidth = worldSize.x / zoneAmount.x;
+        int zoneheight = worldSize.y / zoneAmount.y;
         
-        if ((worldWidth + 0f / zoneAmount.x) % 1 > 0) zoneWidth++;
-        if ((worldHeight + 0f / zoneAmount.y) % 1 > 0) zoneheight++;
+        if ((worldSize.x + 0f / zoneAmount.x) % 1 > 0) zoneWidth++;
+        if ((worldSize.y + 0f / zoneAmount.y) % 1 > 0) zoneheight++;
         
         for (int i = 0; i < zoneAmount.x; i++)
         {
@@ -488,7 +476,9 @@ public class DungeonGenerator : MonoBehaviour
         
         Graph<RectRoom> discovered = new();
         discovered.AddNode(startNode);
-        
+
+        //we traverse the graph from the biggest adjacent room to the smallest adjacent room.
+        //this makes it so that on average the smallest rooms are at the endpoints, and easy to remove later.
         while (toDo.Count > 0)
         {
             if (drawRoomConnections)
@@ -498,13 +488,13 @@ public class DungeonGenerator : MonoBehaviour
             }
             
             RectRoom node = toDo.Pop();
-            
+
             List<RectRoom> sortedEdges = nodeGraph.Edges(node).OrderBy(t => t.roomData.size.magnitude).ToList();
-            
+
             foreach (RectRoom connectedNode in sortedEdges)
             {
                 if (discovered.ContainsKey(connectedNode)) continue;
-                
+
                 toDo.Push(connectedNode);
                 discovered.AddNode(connectedNode);
                 discovered.AddEdge(node, connectedNode);
@@ -541,15 +531,17 @@ public class DungeonGenerator : MonoBehaviour
             if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
             
             RectRoom nodeToRemove = toRemoveList[random.Next(0, toRemoveList.Count)];
-            
-            RectRoom adjacentRoom = nodeGraph.Edges(nodeToRemove)[0];
-            if (nodeGraph.Edges(adjacentRoom).Count == 0) toRemoveList.Add(adjacentRoom);
+            RectRoom adjacentRoom = null;
+            if (nodeGraph.Edges(nodeToRemove).Count > 0) adjacentRoom = nodeGraph.Edges(nodeToRemove)[0];
             
             toRemoveList.Remove(nodeToRemove);
             nodeGraph.RemoveNode(nodeToRemove);
             roomsRemoved++;
             
             if (nodeGraph.KeyCount() == 1) break;
+            
+            //if the one room the nodeToRemove was connected to is now also an endpoint, add it to the list, so it can be romoved later.
+            if (nodeGraph.Edges(adjacentRoom).Count < 2) toRemoveList.Add(adjacentRoom);
         }
     }
     
@@ -561,52 +553,54 @@ public class DungeonGenerator : MonoBehaviour
     async Task PlaceDoors()
     {
         RectRoom[] keyList = nodeGraph.Keys();
-        foreach (RectRoom key in keyList)
+        foreach (RectRoom currentRoom in keyList)
         {
-            List<RectRoom> connectionsList = new(nodeGraph.Edges(key));
-            
+            List<RectRoom> connectionsList = new(nodeGraph.Edges(currentRoom));
+
             for (int i = 0; i < connectionsList.Count; i++)
             {
                 RectRoom connectedRoom = connectionsList[i];
-                
-                if (key.doors.Any(connectedRoom.doors.Contains)) continue;
-                
+
+                if (currentRoom.doors.Any(connectedRoom.doors.Contains)) continue;
+
                 if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
                 if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
-                
-                RectInt overLap = AlgorithmsUtils.Intersect(key.roomData, connectedRoom.roomData);
-                
-                RectDoor newDoor;
-                int xPos;
-                int yPos;
-                
-                if (overLap.width > overLap.height)
+
+                RectInt overLap = AlgorithmsUtils.Intersect(currentRoom.roomData, connectedRoom.roomData);
+
+                Vector2Int newDoorPos = new();
+
+                if (overLap.width > overLap.height) //detects if we border along the horizontal or vertical plane
                 {
-                    xPos = random.Next(
-                        Math.Max(key.roomData.xMin, connectedRoom.roomData.xMin) + (wallThickness * 2), 
-                        Math.Min(key.roomData.xMax, connectedRoom.roomData.xMax) - (wallThickness * 2) - doorSize + 1
+                    //get a random position along our shared wall
+                    newDoorPos.x = random.Next(
+                        Math.Max(currentRoom.roomData.xMin, connectedRoom.roomData.xMin) + (wallThickness * 2),
+                        Math.Min(currentRoom.roomData.xMax, connectedRoom.roomData.xMax) - (wallThickness * 2) - doorSize + 1
                     );
                     
-                    if (key.roomData.y < connectedRoom.roomData.y) yPos = key.roomData.yMax - doorSize;
-                    else yPos = key.roomData.yMin;
+                    //if other room is above us, place door at our top. else place door on our bottom
+                    if (currentRoom.roomData.y < connectedRoom.roomData.y) newDoorPos.y = currentRoom.roomData.yMax - doorSize;
+                    else newDoorPos.y = currentRoom.roomData.yMin;
                 }
                 else
                 {
-                    yPos = random.Next(
-                        Math.Max(key.roomData.yMin, connectedRoom.roomData.yMin) + (wallThickness * 2),
-                        Math.Min(key.roomData.yMax, connectedRoom.roomData.yMax) - (wallThickness * 2) - doorSize + 1
+                    //get a random height along our shared wall
+                    newDoorPos.y = random.Next(
+                        Math.Max(currentRoom.roomData.yMin, connectedRoom.roomData.yMin) + (wallThickness * 2),
+                        Math.Min(currentRoom.roomData.yMax, connectedRoom.roomData.yMax) - (wallThickness * 2) - doorSize + 1
                     );
                     
-                    if (key.roomData.x < connectedRoom.roomData.x) xPos = key.roomData.xMax - doorSize;
-                    else xPos = key.roomData.xMin;
+                    //if other room is to the right of us, place door on our right. else place door on our left
+                    if (currentRoom.roomData.x < connectedRoom.roomData.x) newDoorPos.x = currentRoom.roomData.xMax - doorSize;
+                    else newDoorPos.x = currentRoom.roomData.xMin;
                 }
                 
-                newDoor = new RectDoor(new RectInt(xPos, yPos, doorSize, doorSize));
+                RectDoor newDoor = new(new RectInt(newDoorPos.x, newDoorPos.y, doorSize, doorSize));
                 doors.Add(newDoor);
                 
-                key.doors.Add(doors.Count-1);
-                connectedRoom.doors.Add(doors.Count-1);
-                
+                currentRoom.doors.Add(doors.Count - 1);
+                connectedRoom.doors.Add(doors.Count - 1);
+
                 doorsGenerated++;
             }
         }
@@ -672,7 +666,7 @@ public class DungeonGenerator : MonoBehaviour
         
         if (drawWorldBorder)
         {
-            RectInt wordBorder = new(0, 0, worldWidth, worldHeight);
+            RectInt wordBorder = new(0, 0, worldSize.x, worldSize.y);
             AlgorithmsUtils.DebugRectInt(wordBorder, Color.white, duration, false, 0);
         }
     }
