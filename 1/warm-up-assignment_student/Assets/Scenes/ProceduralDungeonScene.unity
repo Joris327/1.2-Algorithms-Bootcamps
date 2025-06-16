@@ -410,7 +410,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   waitForKey: 0
-  visualDelay: 0.2
+  visualDelay: 0.1
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -644,16 +644,14 @@ MonoBehaviour:
   awaitableUtils: {fileID: 2033840196}
   seed: 0
   startSeed: 0
-  dungeonsToGenerate: 1
   player: {fileID: 400353333}
-  worldWidth: 25
-  worldHeight: 25
+  worldSize: {x: 25, y: 25}
+  useZones: 1
   zoneAmount: {x: 2, y: 2}
   minRoomSize: 5
   maxRoomSize: 10
   roomsLimit: 100000
   chanceToSplit: 75
-  useZones: 1
   guaranteedSplits: 4
   roomRemovalPercentage: 10
   wallThickness: 1
@@ -681,7 +679,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   waitForKey: 0
-  visualDelay: 0
+  visualDelay: 0.1
 --- !u!114 &2033840197
 MonoBehaviour:
   m_ObjectHideFlags: 0

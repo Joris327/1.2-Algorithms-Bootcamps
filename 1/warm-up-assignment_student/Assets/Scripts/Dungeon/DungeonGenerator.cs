@@ -45,6 +45,7 @@ public class DungeonGenerator : MonoBehaviour
     
     [Header("World")]
     [SerializeField] Vector2Int worldSize = new(25, 25);
+    [SerializeField] bool useZones = true;
     [SerializeField] Vector2Int zoneAmount = new(10, 10);
     
     [Header("Rooms")]
@@ -52,7 +53,6 @@ public class DungeonGenerator : MonoBehaviour
     [SerializeField, Min(5)] int maxRoomSize = 20;
     [SerializeField, Min(0)] int roomsLimit = 1000;
     [SerializeField, Range(0, 100)] int chanceToSplit = 90;
-    [SerializeField] bool useZones = true;
     
     /// <summary>
     /// How many times to guarantee rooms split before applying a chance. Prevents dungeon-sized rooms.
@@ -564,8 +564,7 @@ public class DungeonGenerator : MonoBehaviour
 
                 if (currentRoom.doors.Any(connectedRoom.doors.Contains)) continue;
 
-                if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
-                if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
+                await awaitableUtils.Delay();
 
                 RectInt overLap = AlgorithmsUtils.Intersect(currentRoom.roomData, connectedRoom.roomData);
 
