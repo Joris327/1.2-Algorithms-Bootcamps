@@ -273,8 +273,6 @@ public class VisualsGenerator : MonoBehaviour
     /// </summary>
     async Task FloodFillRecursive()
     {
-        await awaitableUtils.Delay();
-        
         RectRoom startRoom = dungeonGenerator.GetFirstRoom;
         await PlaceTile(new Vector2Int((int)startRoom.roomData.center.x, (int)startRoom.roomData.center.y));
     }
