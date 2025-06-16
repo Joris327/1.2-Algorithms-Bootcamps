@@ -11,7 +11,7 @@ public class VisualsGenerator : MonoBehaviour
     //serialized fields
     [SerializeField] DungeonGenerator dungeonGenerator;
     [SerializeField] AwaitableUtils awaitableUtils;
-    [Min(0)] public float visualDelay = 0;
+    
     [SerializeField] bool floodFillRecursively = true;
     [SerializeField] bool debugDraw = false;
     [SerializeField] Player player;
@@ -53,8 +53,7 @@ public class VisualsGenerator : MonoBehaviour
         RectRoom[] keys = nodeGraph.Keys();
         foreach (RectRoom room in keys)
         {
-            if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
-            if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
+            await awaitableUtils.Delay();
             
             Vector3 floorPos = new(room.roomData.center.x, 0, room.roomData.center.y);
             GameObject floor = Instantiate(simpleFloorPrefab, floorPos, simpleFloorPrefab.transform.rotation, visualsContainer.transform);
@@ -89,6 +88,8 @@ public class VisualsGenerator : MonoBehaviour
         {
             for (int j = 0; j < worldSize.y; j++)
             {
+                await awaitableUtils.Delay();
+                
                 byte pos = map[i, j];
                 if (pos == 1) Instantiate(simpleWallPrefab, new Vector3(i + 0.5f, 0.5f, j + 0.5f), Quaternion.identity, visualsContainer.transform);
             }
@@ -147,12 +148,8 @@ public class VisualsGenerator : MonoBehaviour
         foreach (RectRoom room in rooms)
         {
             RectInt roomData = room.roomData;
-
-            if (visualDelay > 0)
-            {
-                AlgorithmsUtils.DebugRectInt(roomData, Color.red, visualDelay);
-                await Awaitable.WaitForSecondsAsync(visualDelay);
-            }
+            
+            await awaitableUtils.Delay(roomData);
             
             //we log the edges (inset WallThickness, because walls are more than one tile thick) of each room as needing walls
             for (int i = dungeonGenerator.WallThickness * 2 - 1; i < roomData.width - dungeonGenerator.WallThickness * 2 + 1; i++)
@@ -171,12 +168,6 @@ public class VisualsGenerator : MonoBehaviour
         RectDoor[] doors = dungeonGenerator.GetDoors;
         foreach (RectDoor door in doors)
         {
-            if (visualDelay > 0)
-            {
-                AlgorithmsUtils.DebugRectInt(door.doorData, Color.red, visualDelay);
-                await Awaitable.WaitForSecondsAsync(visualDelay);
-            }
-
             foreach (Vector2Int doorPos in door.doorData.allPositionsWithin)
             {
                 tileMap[doorPos.y, doorPos.x] = 0;
@@ -199,13 +190,9 @@ public class VisualsGenerator : MonoBehaviour
             for (int j = 1; j < cols - 2; j++)
             {
                 int tileCase = tileMap[i, j] * 8 + tileMap[i + 1, j] * 4 + tileMap[i, j + 1] * 1 + tileMap[i + 1, j + 1] * 2;
-
-                if (visualDelay > 0)
-                {
-                    AlgorithmsUtils.DebugRectInt(new(j, i, 2, 2), Color.red, visualDelay);
-                    await Awaitable.WaitForSecondsAsync(visualDelay);
-                }
-
+                
+                await awaitableUtils.Delay(new RectInt(j, i, 2, 2));
+                
                 if (tileCase < 1 || tileCase >= wallPrefabs.Length) continue;
 
                 Instantiate(wallPrefabs[tileCase], new Vector3(j + 1, 0, i + 1), wallPrefabs[tileCase].transform.rotation, visualsContainer.transform);
@@ -229,12 +216,8 @@ public class VisualsGenerator : MonoBehaviour
         while (queue.Count > 0)
         {
             Vector2Int tile = queue.Dequeue();
-
-            if (visualDelay > 0)
-            {
-                AlgorithmsUtils.DebugRectInt(new(tile.x, tile.y, 1, 1), Color.red, visualDelay);
-                await Awaitable.WaitForSecondsAsync(visualDelay);
-            }
+            
+            await awaitableUtils.Delay(new RectInt(tile.x, tile.y, 1, 1));
 
             if (tileMap[tile.y, tile.x] != 0) continue;
 
@@ -276,11 +259,7 @@ public class VisualsGenerator : MonoBehaviour
     /// </summary>
     async Task FloodFillRecursive()
     {
-        if (visualDelay > 0)
-        {
-            //AlgorithmsUtils.DebugRectInt(new(pos.x, pos.y, 1, 1), Color.red, visualDelay);
-            await Awaitable.WaitForSecondsAsync(visualDelay);
-        }
+        await awaitableUtils.Delay();
         
         RectRoom startRoom = dungeonGenerator.GetFirstRoom;
         await PlaceTile(new Vector2Int((int)startRoom.roomData.center.x, (int)startRoom.roomData.center.y));
@@ -291,11 +270,7 @@ public class VisualsGenerator : MonoBehaviour
     /// </summary>
     async Task PlaceTile(Vector2Int pos)
     {
-        if (visualDelay > 0)
-        {
-            AlgorithmsUtils.DebugRectInt(new(pos.x, pos.y, 1, 1), Color.red, visualDelay);
-            await Awaitable.WaitForSecondsAsync(visualDelay);
-        }
+        await awaitableUtils.Delay(new RectInt(pos.x, pos.y, 1, 1));
         
         if (tileMap[pos.y, pos.x] != 0) return;
         

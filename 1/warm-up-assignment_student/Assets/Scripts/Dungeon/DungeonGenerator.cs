@@ -44,7 +44,7 @@ public class DungeonGenerator : MonoBehaviour
     [Tooltip("The seed used to generate the dungeon. If 0, will generate new random seed for each dungeon. Else will use the given seed for every dungeon generated.")]
     [SerializeField] int startSeed = 0;
     [SerializeField, Min(0)] int dungeonsToGenerate = 1;
-    [SerializeField, Min(0)] float visualDelay = 0.5f;
+    //[SerializeField, Min(0)] float visualDelay = 0.5f;
     [SerializeField] Player player;
     
     [Header("World")]
@@ -138,11 +138,11 @@ public class DungeonGenerator : MonoBehaviour
         Debug.Log("Generating...");
         
         ClearGenerator();
-        if (visualDelay > 0 || visualsGenerator.visualDelay > 0) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
+        if (awaitableUtils.visualDelay > 0 || awaitableUtils.waitForKey != KeyCode.None) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
         
         await Generate();
         
-        if (visualDelay == 0 && visualsGenerator.visualDelay == 0) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
+        if (awaitableUtils.visualDelay == 0 && awaitableUtils.waitForKey == KeyCode.None) DebugDrawingBatcher.GetInstance().BatchCall(DrawDungeon);
     }
     
     /// <summary>
@@ -180,7 +180,7 @@ public class DungeonGenerator : MonoBehaviour
             worldHeight/2
         );
         
-        if (visualDelay == 0) await Awaitable.BackgroundThreadAsync();
+        if (awaitableUtils.visualDelay == 0 && awaitableUtils.waitForKey == KeyCode.None) await Awaitable.BackgroundThreadAsync();
         System.Diagnostics.Stopwatch totalWatch = System.Diagnostics.Stopwatch.StartNew();
         System.Diagnostics.Stopwatch dataWatch = System.Diagnostics.Stopwatch.StartNew();
         
@@ -295,8 +295,9 @@ public class DungeonGenerator : MonoBehaviour
         
         while (toDoQueue.Count > 0)
         {
-            if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
-            if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
+            //if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
+            //if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
+            await awaitableUtils.Delay();
             
             if (nodeGraph.KeyCount() > guaranteedSplits && !MustBeSplit(toDoQueue.Peek()) && random.Next(0, 100) > chanceToSplit) //decide if we're going to split or not
             {
@@ -407,8 +408,10 @@ public class DungeonGenerator : MonoBehaviour
         {
             for (int j = 0; j < zoneAmount.y; j++)
             {
-                if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
-                if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
+                //if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
+                //if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
+                await awaitableUtils.Delay();
+                
                 Zone newZone = new(new RectInt(i * zoneWidth, j * zoneheight, zoneWidth, zoneheight));
                 zones[i, j] = newZone;
             }
@@ -493,8 +496,9 @@ public class DungeonGenerator : MonoBehaviour
         {
             if (drawRoomConnections)
             {
-                if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
-                if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
+                //if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
+                //if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
+                await awaitableUtils.Delay();
             }
             
             RectRoom node = toDo.Pop();
@@ -537,8 +541,7 @@ public class DungeonGenerator : MonoBehaviour
         
         while (roomsRemoved < amountToRemove)
         {
-            if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
-            if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
+            await awaitableUtils.Delay();
             
             RectRoom nodeToRemove = toRemoveList[random.Next(0, toRemoveList.Count)];
             
@@ -571,8 +574,7 @@ public class DungeonGenerator : MonoBehaviour
                 
                 if (key.doors.Any(connectedRoom.doors.Contains)) continue;
                 
-                if (visualDelay > 0) await Awaitable.WaitForSecondsAsync(visualDelay);
-                if (awaitableUtils.waitForKey != KeyCode.None) await awaitableUtils;
+                await awaitableUtils.Delay();
                 
                 RectInt overLap = AlgorithmsUtils.Intersect(key.roomData, connectedRoom.roomData);
                 

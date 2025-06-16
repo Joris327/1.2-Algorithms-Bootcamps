@@ -14,7 +14,7 @@ public class Player : MonoBehaviour
 {
     [SerializeField] SearchMode searchMode;
     [SerializeField] bool showGraph = true;
-    [SerializeField, Min(0)] float visualDelay = 0;
+    [SerializeField] AwaitableUtils awaitableUtils;
     [SerializeField, Min(0)] float heuristicWeight = 1;
     
     enum SearchMode { Dijkstra, AStar }
@@ -40,10 +40,7 @@ public class Player : MonoBehaviour
             Ray mouseRay = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(mouseRay, out RaycastHit hitInfo))
             {
-                Vector3 clickWorldPosition = hitInfo.point;
-                //Debug.Log(clickWorldPosition); 
-
-                clickPosition = clickWorldPosition;
+                clickPosition = hitInfo.point;
                 
                 if (graph == null)
                 {
@@ -57,8 +54,15 @@ public class Player : MonoBehaviour
                 }
             }
         }
-
-        // Add debug visuals
+        
+        ShowDebugVisuals();
+    }
+    
+    /// <summary>
+    /// fairly self-explainatory
+    /// </summary>
+    void ShowDebugVisuals()
+    {
         DebugExtension.DebugCircle(clickPosition, Color.blue);
         Debug.DrawLine(Camera.main.transform.position, clickPosition, Color.yellow);
         
@@ -136,7 +140,7 @@ public class Player : MonoBehaviour
         
         List<KeyValuePair<Vector3, float>> toDoList = new(); //node, priority
 	    Dictionary<Vector3, float> costs = new(); //node, cost
-        Dictionary<Vector3, Vector3> path = new(); //edge, node
+        Dictionary<Vector3, Vector3> connections = new(); //edge, node
         discovered = new();
         
         toDoList.Add(new KeyValuePair<Vector3, float>(start,0));
@@ -148,15 +152,11 @@ public class Player : MonoBehaviour
             toDoList.RemoveAt(toDoList.Count-1);
             discovered.Add(node);
             
-            if (visualDelay > 0)
-            {
-                AlgorithmsUtils.DebugRectInt(new((int)node.x, (int)node.z, 1, 1), Color.red, visualDelay);
-                await Awaitable.WaitForSecondsAsync(visualDelay);
-            }
+            await awaitableUtils.Delay(new RectInt((int)node.x, (int)node.z, 1, 1));
             
             if (node == end)
             {
-                ReconstructPath(path, end, start);
+                await ReconstructPath(connections, end, start);
                 pathFindWatch.Stop();
                 Debug.Log("Nodes Searched: " + discovered.Count);
                 Debug.Log("Path find time: " + Math.Round(pathFindWatch.Elapsed.TotalMilliseconds, 3));
@@ -170,7 +170,7 @@ public class Player : MonoBehaviour
                 if (!costs.Keys.Contains(edge) || newCost < costs[edge])
                 {
                     costs[edge] = newCost;
-                    path[edge] = node;
+                    connections[edge] = node;
                     
                     switch (searchMode)
                     {
@@ -190,18 +190,22 @@ public class Player : MonoBehaviour
     /// <summary>
     /// traces the found path back to the origin for the player to follow
     /// </summary>
-    void ReconstructPath(Dictionary<Vector3, Vector3> newPath, Vector3 end, Vector3 start)
+    async Task ReconstructPath(Dictionary<Vector3, Vector3> connections, Vector3 end, Vector3 start)
     {
-        List<Vector3> returnList = new();
-        returnList.Add(end);
+        List<Vector3> returnList = new()
+        {
+            end
+        };
         
         while (returnList.Last() != start)
         {
-            returnList.Add(newPath[returnList.Last()]);
+            returnList.Add(connections[returnList.Last()]);
+            
+            await awaitableUtils.Delay(new RectInt((int)returnList.Last().x, (int)returnList.Last().y, 1, 1));
         }
         
+        returnList.Reverse();
         path = returnList;
-        path.Reverse();
         Debug.Log("Path Length: " + path.Count);
     }
 }

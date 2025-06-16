@@ -269,6 +269,7 @@ GameObject:
   - component: {fileID: 400353335}
   - component: {fileID: 400353333}
   - component: {fileID: 400353339}
+  - component: {fileID: 400353340}
   - component: {fileID: 400353338}
   m_Layer: 0
   m_Name: Player
@@ -291,7 +292,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   searchMode: 1
   showGraph: 1
-  visualDelay: 0
+  awaitableUtils: {fileID: 400353340}
   heuristicWeight: 1
 --- !u!23 &400353335
 MeshRenderer:
@@ -396,6 +397,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   speed: 10
+--- !u!114 &400353340
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 400353332}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8bb800cf5ae203d40b99aed67d7b6e51, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  waitForKey: 0
+  visualDelay: 0.2
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -628,12 +643,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   awaitableUtils: {fileID: 2033840196}
   seed: 0
-  startSeed: 1
+  startSeed: 0
   dungeonsToGenerate: 1
-  visualDelay: 0
   player: {fileID: 400353333}
-  worldWidth: 50
-  worldHeight: 50
+  worldWidth: 25
+  worldHeight: 25
   zoneAmount: {x: 2, y: 2}
   minRoomSize: 5
   maxRoomSize: 10
@@ -654,8 +668,6 @@ MonoBehaviour:
   createVisuals: 1
   visualsMethod: 1
   visualsGenerator: {fileID: 2033840198}
-  simpleWallPrefab: {fileID: 9075065626098617084, guid: f363a0dc37fecd243a9b17ac75ff1296, type: 3}
-  simpleFloorPrefab: {fileID: 8240098480757791931, guid: 79edd033ff3ef384699e163416979c3e, type: 3}
 --- !u!114 &2033840196
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -669,6 +681,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   waitForKey: 0
+  visualDelay: 0
 --- !u!114 &2033840197
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -714,10 +727,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dungeonGenerator: {fileID: 2033840194}
-  visualDelay: 0
+  awaitableUtils: {fileID: 2033840196}
   floodFillRecursively: 1
   debugDraw: 1
   player: {fileID: 400353333}
+  simpleWallPrefab: {fileID: 9075065626098617084, guid: f363a0dc37fecd243a9b17ac75ff1296, type: 3}
+  simpleFloorPrefab: {fileID: 8240098480757791931, guid: 79edd033ff3ef384699e163416979c3e, type: 3}
   floorTilePrefab: {fileID: 4786606637186289427, guid: ee2ec93b0f8db314d99c5c4ca581bc18, type: 3}
   wallPrefabs:
   - {fileID: 2878497128050032797, guid: 76bb09cb4c27d8a4696214dce0326bdd, type: 3}
