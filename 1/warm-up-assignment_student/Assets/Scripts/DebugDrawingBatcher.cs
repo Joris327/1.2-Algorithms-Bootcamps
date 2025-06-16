@@ -9,8 +9,11 @@ public class DebugDrawingBatcher : MonoBehaviour
     private static List<DebugDrawingBatcher> debugDrawingBatchers = new List<DebugDrawingBatcher>();
     
     public static float duration = 0;
+
+    public static bool HasInstances() => instances.Count > 0;
     
-    public static DebugDrawingBatcher GetInstance(string pName = "default") {
+    public static DebugDrawingBatcher GetInstance(string pName = "default")
+    {
         if (!instances.TryGetValue(pName, out var value))
         {
             instances[pName] = value = CreateInstance(pName);

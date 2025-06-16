@@ -39,6 +39,16 @@ public class VisualsGenerator : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Resets all private variables to their default state.
+    /// </summary>
+    public void Reset()
+    {
+        tileMap = null;
+        worldSize = new();
+        DestroyImmediate(visualsContainer);
+    }
+
     #region Create Simple Visuals
     /// <summary>
     /// creates visuals for the dungeon in line with the sufficient criteria.
@@ -46,36 +56,39 @@ public class VisualsGenerator : MonoBehaviour
     public async Task CreateSimpleVisuals(Graph<RectRoom> nodeGraph, RectDoor[] doors)
     {
         System.Diagnostics.Stopwatch visualsGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
-        
+
         visualsContainer = new GameObject("Dungeon geometry");
+        worldSize = dungeonGenerator.WorldSize;
         byte[,] map = new byte[worldSize.x, worldSize.y];
         
+        //create tileMap
         RectRoom[] keys = nodeGraph.Keys();
         foreach (RectRoom room in keys)
         {
             await awaitableUtils.Delay();
             
+            //Place floors
             Vector3 floorPos = new(room.roomData.center.x, 0, room.roomData.center.y);
             GameObject floor = Instantiate(simpleFloorPrefab, floorPos, simpleFloorPrefab.transform.rotation, visualsContainer.transform);
             floor.transform.localScale = new Vector3(room.roomData.width, room.roomData.height, 1);
-            
+
             RectInt roomData = room.roomData;
-            for (int i = roomData.yMin; i < roomData.yMax-1; i++)
+            for (int i = roomData.yMin; i < roomData.yMax - 1; i++)
             {
-                map[roomData.xMax-1, i] = 1;
-                map[roomData.xMax-2, i] = 1;
-                map[roomData.xMin  , i] = 1;
-                map[roomData.xMin+1, i] = 1;
+                map[roomData.xMax - 1, i] = 1;
+                map[roomData.xMax - 2, i] = 1;
+                map[roomData.xMin, i] = 1;
+                map[roomData.xMin + 1, i] = 1;
             }
-            for (int i = roomData.xMin; i < roomData.xMax-1; i++)
+            for (int i = roomData.xMin; i < roomData.xMax - 1; i++)
             {
-                map[i, roomData.yMax-1] = 1;
-                map[i, roomData.yMax-2] = 1;
-                map[i, roomData.yMin  ] = 1;
-                map[i, roomData.yMin+1] = 1;
+                map[i, roomData.yMax - 1] = 1;
+                map[i, roomData.yMax - 2] = 1;
+                map[i, roomData.yMin] = 1;
+                map[i, roomData.yMin + 1] = 1;
             }
         }
-        
+
         foreach (RectDoor door in doors)
         {
             foreach (Vector2Int doorPos in door.doorData.allPositionsWithin)
@@ -84,6 +97,7 @@ public class VisualsGenerator : MonoBehaviour
             }
         }
         
+        //place walls
         for (int i = 0; i < worldSize.x; i++)
         {
             for (int j = 0; j < worldSize.y; j++)
@@ -94,7 +108,7 @@ public class VisualsGenerator : MonoBehaviour
                 if (pos == 1) Instantiate(simpleWallPrefab, new Vector3(i + 0.5f, 0.5f, j + 0.5f), Quaternion.identity, visualsContainer.transform);
             }
         }
-        
+
         visualsGenerationWatch.Stop();
         Debug.Log("Sufficient Visuals generation time: " + Math.Round(visualsGenerationWatch.Elapsed.TotalMilliseconds, 3));
     }
@@ -104,7 +118,7 @@ public class VisualsGenerator : MonoBehaviour
     /// <summary>
     /// generate visuals in line with the excelent criteria.
     /// </summary>
-    public async Task Generate()
+    public async Task CreateGoodVisuals()
     {
         System.Diagnostics.Stopwatch visualsGenerationWatch = System.Diagnostics.Stopwatch.StartNew();
 
